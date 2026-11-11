@@ -85,7 +85,7 @@ function createMotoIcon(): L.DivIcon {
   });
 }
 
-// Icono para el local: Marcador rojo estilo Google Maps con animación + Cartel de Burguerama con Logo
+// Icono para el local: Marcador rojo estilo Google Maps con animación + Cartel de Burguerama con Logo separado
 function createStoreIcon(isArrived: boolean): L.DivIcon {
   if (!isArrived) {
     return L.divIcon({
@@ -99,19 +99,19 @@ function createStoreIcon(isArrived: boolean): L.DivIcon {
   return L.divIcon({
     className: 'custom-leaflet-marker',
     html: `
-      <div style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 180px; height: 130px; pointer-events: auto; overflow: visible;">
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 180px; height: 160px; pointer-events: auto; overflow: visible;">
         
         <!-- Cartel de Burguerama con Logo y Dirección -->
         <div class="store-card-pop-anim" style="
           position: absolute;
-          bottom: 48px;
+          bottom: 52px;
           left: 50%;
           display: flex;
           flex-direction: column;
           align-items: center;
           filter: drop-shadow(0 6px 16px rgba(0,0,0,0.7));
         ">
-          <!-- Logo circular con borde ámbar -->
+          <!-- Logo circular con borde ámbar (elevado arriba del cuadrito, sin superponerse) -->
           <div style="
             width: 44px;
             height: 44px;
@@ -120,7 +120,7 @@ function createStoreIcon(isArrived: boolean): L.DivIcon {
             border: 2.5px solid #f59e0b;
             padding: 2px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-            margin-bottom: -10px;
+            margin-bottom: 6px;
             z-index: 2;
             position: relative;
           ">
@@ -132,15 +132,15 @@ function createStoreIcon(isArrived: boolean): L.DivIcon {
             background: #0d0d14;
             border: 2px solid #f59e0b;
             border-radius: 12px;
-            padding: 5px 12px 6px 12px;
+            padding: 6px 14px 7px 14px;
             text-align: center;
             white-space: nowrap;
           ">
             <div style="color: #f59e0b; font-size: 11px; font-weight: 900; letter-spacing: 0.8px; font-family: 'Plus Jakarta Sans', sans-serif;">BURGUERAMA</div>
-            <div style="color: #f1f5f9; font-size: 10px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 1px;">Sarandí 312 Bis</div>
+            <div style="color: #f1f5f9; font-size: 10px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 2px;">Sarandí 312 Bis</div>
           </div>
 
-          <!-- Puntero hacia abajo -->
+          <!-- Puntero hacia abajo hacia el pin rojo -->
           <div style="
             width: 0;
             height: 0;
@@ -176,8 +176,8 @@ function createStoreIcon(isArrived: boolean): L.DivIcon {
 
       </div>
     `,
-    iconSize: [180, 130],
-    iconAnchor: [90, 130],
+    iconSize: [180, 160],
+    iconAnchor: [90, 160],
   });
 }
 
@@ -205,10 +205,9 @@ export const DeliveryMapLive: React.FC = () => {
       touchZoom: true,
     });
 
-    // Capa de mapa real CartoDB Voyager (clara, moderna y nítida) con fallback OSM
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // Capa de mapa real oficial OpenStreetMap (idéntica a la usada en Foods / sin API key requerida)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd',
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
