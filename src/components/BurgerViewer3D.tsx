@@ -160,16 +160,13 @@ export const BurgerViewer3D: React.FC<BurgerViewer3DProps> = ({ className = '', 
           opacity: introOpacity,
         }}
       >
-        {/* Real High-Resolution Burguerama Smash Burger */}
-        <picture className="w-full h-full flex items-center justify-center pointer-events-none drop-shadow-[0_25px_40px_rgba(0,0,0,0.85)]">
-          <source srcSet="/Hamburguesa_hero.webp" type="image/webp" />
-          <img
-            src="/Hamburguesa_transparente.png"
-            alt="Burguerama Smash Burger Artesanal"
-            className="w-[94%] h-[94%] sm:w-[96%] sm:h-[96%] object-contain select-none filter contrast-[1.05] brightness-[1.02]"
-            draggable={false}
-          />
-        </picture>
+        {/* Real High-Resolution Burguerama Smash Burger (Transparente sin fondo blanco) */}
+        <img
+          src="/Gemini_Generated_Image_dzskevdzskevdzsk_pixian_ai.png"
+          alt="Burguerama Smash Burger Artesanal"
+          className="w-[94%] h-[94%] sm:w-[96%] sm:h-[96%] object-contain select-none pointer-events-none drop-shadow-[0_25px_40px_rgba(0,0,0,0.85)] filter contrast-[1.05] brightness-[1.02]"
+          draggable={false}
+        />
 
         {/* Dynamic Specular Sheen (Reacts to 3D light & tilt angle) */}
         <div

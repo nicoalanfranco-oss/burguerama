@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Flame, Clock, MapPin, Sparkles, Navigation, Phone, ExternalLink, Heart, ShieldCheck } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
+import { DeliveryMapLive } from './DeliveryMapLive';
 
 export const CulturaBurgueramaSection: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
@@ -159,122 +160,8 @@ export const CulturaBurgueramaSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Interactive Map Visual with Real Tacuarembó Map and Animated Moto */}
-          <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden bg-white border border-white/10 select-none shadow-inner">
-            <svg className="w-full h-full" viewBox="0 0 942 502" preserveAspectRatio="xMidYMid slice">
-              <defs>
-                {/* Glow Filter for Neon Green Route */}
-                <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              {/* Clean OpenStreetMap Tacuarembó without any drawn lines */}
-              <image
-                href="/mapa_tacuarembo_clean.jpg"
-                x="0"
-                y="0"
-                width="942"
-                height="502"
-                preserveAspectRatio="xMidYMid slice"
-              />
-
-              {/* Animated Neon Green Delivery Route Path following real street directions */}
-              {/* Outer glow path - thicker, animated draw+erase like GPS nav */}
-              <path
-                id="deliveryRoute"
-                d="M 221 207 L 344 323 L 463 195 L 637 356"
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="10"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#routeGlow)"
-                className="animate-delivery-route"
-              />
-              {/* Inner bright path - same animation in sync */}
-              <path
-                d="M 221 207 L 344 323 L 463 195 L 637 356"
-                fill="none"
-                stroke="#34d399"
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="animate-delivery-route"
-              />
-
-              {/* Destination Point: Google Maps-style Red Pin Marker */}
-              <g transform="translate(637, 356)">
-                {/* Google Maps red pin marker */}
-                <g transform="translate(0, -36)">
-                  {/* Drop shadow */}
-                  <ellipse cx="0" cy="36" rx="6" ry="3" fill="rgba(0,0,0,0.25)" />
-                  {/* Pin body — Google Maps red */}
-                  <path
-                    d="M0-16 C-8.8-16 -16-8.8 -16 0 C-16 12 0 32 0 32 C0 32 16 12 16 0 C16-8.8 8.8-16 0-16Z"
-                    fill="#EA4335"
-                    stroke="#C5221F"
-                    strokeWidth="1.5"
-                  />
-                  {/* Inner white circle */}
-                  <circle cx="0" cy="0" r="6" fill="white" />
-                </g>
-              </g>
-
-              {/* Burguerama Store Label — appears with entrance animation when moto arrives */}
-              <g transform="translate(637, 356)" className="animate-store-appear" style={{ opacity: 0 }}>
-                {/* Store Pin: Burguerama Logo on top + Address Card below */}
-                <g transform="translate(0, -96)">
-                  {/* Circular Burguerama Logo directly above the cartel */}
-                  <g transform="translate(0, -22)">
-                    <circle r="22" fill="#0d0d14" stroke="#f59e0b" strokeWidth="2.5" />
-                    <clipPath id="logoPinClip">
-                      <circle r="20" cx="0" cy="0" />
-                    </clipPath>
-                    <image
-                      href="/Burguerama_logo.png"
-                      x="-20"
-                      y="-20"
-                      width="40"
-                      height="40"
-                      clipPath="url(#logoPinClip)"
-                      preserveAspectRatio="xMidYMid slice"
-                    />
-                  </g>
-
-                  {/* Cartel with direction */}
-                  <g transform="translate(-65, 8)">
-                    <rect width="130" height="34" rx="10" fill="#0d0d14" stroke="#f59e0b" strokeWidth="2" />
-                    <text x="65" y="15" textAnchor="middle" fill="#f59e0b" fontSize="9.5" fontWeight="900" letterSpacing="0.8">
-                      BURGUERAMA
-                    </text>
-                    <text x="65" y="27" textAnchor="middle" fill="#f1f5f9" fontSize="8.5" fontWeight="700">
-                      Sarandí 312 Bis
-                    </text>
-                    {/* Pointer down to street */}
-                    <polygon points="60,34 70,34 65,42" fill="#0d0d14" />
-                    <polyline points="60,34 65,42 70,34" fill="none" stroke="#f59e0b" strokeWidth="1.5" />
-                  </g>
-                </g>
-              </g>
-
-              {/* Animated Delivery Rider - Just the Moto, no order number, no driver name */}
-              <g className="animate-delivery-rider pointer-events-none">
-                {/* Pulsing Emerald Radar Ring */}
-                <circle cx="0" cy="0" r="18" fill="none" stroke="#10b981" strokeWidth="2" opacity="0.6" className="animate-ping" />
-                {/* Circular Badge with Emerald border */}
-                <circle cx="0" cy="0" r="14" fill="#0f172a" stroke="#10b981" strokeWidth="2.5" />
-                {/* Moto Icon */}
-                <text x="0" y="4.5" textAnchor="middle" fontSize="13">
-                  🛵
-                </text>
-              </g>
-            </svg>
-          </div>
+          {/* Interactive Live Delivery Map with Real Leaflet Map of Tacuarembó */}
+          <DeliveryMapLive />
         </div>
 
       </div>
