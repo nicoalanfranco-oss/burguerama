@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { triggerHaptic } from '../utils/haptics';
 
 interface BurgerViewer3DProps {
@@ -7,258 +11,325 @@ interface BurgerViewer3DProps {
 }
 
 export const BurgerViewer3D: React.FC<BurgerViewer3DProps> = ({ className = '', onLoaded }) => {
-  // Rotation in degrees
-  const [rotX, setRotX] = useState<number>(0);
-  const [rotY, setRotY] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [introFinished, setIntroFinished] = useState<boolean>(false);
-  const [introProgress, setIntroProgress] = useState<number>(0); // 0 to 1
+  const mountRef = useRef<HTMLDivElement>(null);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [hasError, setHasError] = useState<boolean>(false);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dragStartRef = useRef<{ x: number; y: number; startRotX: number; startRotY: number }>({
-    x: 0,
-    y: 0,
-    startRotX: 0,
-    startRotY: 0,
-  });
-  const velocityRef = useRef<{ vx: number; vy: number }>({ vx: 0, vy: 0 });
-  const lastMoveRef = useRef<{ x: number; y: number; time: number }>({ x: 0, y: 0, time: 0 });
-  const animFrameRef = useRef<number | null>(null);
-  const idleAngleRef = useRef<number>(0);
+  // References
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const modelGroupRef = useRef<THREE.Group | null>(null);
+  const animFrameIdRef = useRef<number | null>(null);
+  const introStartTimeRef = useRef<number | null>(null);
+  const isInteractingRef = useRef<boolean>(false);
 
-  // 1. Cinematic 3D Entrance Animation (Smooth, instant, zero delay)
   useEffect(() => {
-    let startTime: number | null = null;
-    const duration = 1350; // 1.35 seconds entrance
+    const container = mountRef.current;
+    if (!container) return;
 
-    const stepIntro = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
-      const t = Math.min(1, elapsed / duration);
-
-      // Custom exponential cubic-bezier deceleration
-      const easeOut = 1 - Math.pow(1 - t, 3.5);
-      setIntroProgress(easeOut);
-
-      // Spin from -720 deg to 0 deg
-      const currentRotY = -720 * (1 - easeOut);
-      // Slight pitch entrance (starts tilted down, levels out)
-      const currentRotX = 22 * (1 - easeOut);
-
-      setRotY(currentRotY);
-      setRotX(currentRotX);
-
-      if (t < 1) {
-        animFrameRef.current = requestAnimationFrame(stepIntro);
-      } else {
-        setIntroFinished(true);
-        triggerHaptic('medium');
-        if (onLoaded) onLoaded();
+    // Detect WebGL
+    try {
+      const testCanvas = document.createElement('canvas');
+      const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl');
+      if (!gl) {
+        setHasError(true);
+        return;
       }
-    };
-
-    animFrameRef.current = requestAnimationFrame(stepIntro);
-
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, [onLoaded]);
-
-  // 2. Physics & Inertia Loop after intro finishes
-  useEffect(() => {
-    if (!introFinished) return;
-
-    let lastTime = performance.now();
-
-    const loop = (currentTime: number) => {
-      const dt = Math.min(32, currentTime - lastTime) / 1000;
-      lastTime = currentTime;
-
-      if (!isDragging) {
-        // Apply friction to throw velocity
-        const friction = 0.94;
-        velocityRef.current.vx *= friction;
-        velocityRef.current.vy *= friction;
-
-        // Apply remaining velocity
-        if (Math.abs(velocityRef.current.vx) > 0.05 || Math.abs(velocityRef.current.vy) > 0.05) {
-          setRotY((prev) => prev + velocityRef.current.vx * dt * 45);
-          setRotX((prev) => Math.max(-28, Math.min(28, prev - velocityRef.current.vy * dt * 35)));
-        } else {
-          // Gentle natural idle floating wobble
-          idleAngleRef.current += dt * 0.8;
-          const wobbleY = Math.sin(idleAngleRef.current) * 6;
-          const wobbleX = Math.cos(idleAngleRef.current * 0.7) * 3;
-          // Smooth return towards idle center
-          setRotY((prev) => prev * 0.98 + wobbleY * 0.02);
-          setRotX((prev) => prev * 0.96 + wobbleX * 0.04);
-        }
-      }
-
-      animFrameRef.current = requestAnimationFrame(loop);
-    };
-
-    animFrameRef.current = requestAnimationFrame(loop);
-
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, [introFinished, isDragging]);
-
-  // 3. Pointer Handlers (Mouse & Touch Dragging)
-  const handlePointerDown = (e: React.PointerEvent) => {
-    setIsDragging(true);
-    triggerHaptic('light');
-
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      startRotX: rotX,
-      startRotY: rotY,
-    };
-
-    lastMoveRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      time: performance.now(),
-    };
-
-    velocityRef.current = { vx: 0, vy: 0 };
-
-    if (containerRef.current) {
-      containerRef.current.setPointerCapture(e.pointerId);
-    }
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) {
-      // Subtle mouse tracking tilt when hovering without dragging
-      if (containerRef.current && introFinished) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const normX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-        const normY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-        setRotY(normX * 18);
-        setRotX(-normY * 14);
-      }
+    } catch {
+      setHasError(true);
       return;
     }
 
-    const now = performance.now();
-    const dt = Math.max(8, now - lastMoveRef.current.time);
-    const dx = e.clientX - lastMoveRef.current.x;
-    const dy = e.clientY - lastMoveRef.current.y;
+    // 1. Scene setup
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
 
-    // Track instantaneous throw velocity
-    velocityRef.current = {
-      vx: (dx / dt) * 18,
-      vy: (dy / dt) * 18,
-    };
+    const width = container.clientWidth || 500;
+    const height = container.clientHeight || 500;
 
-    lastMoveRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      time: now,
-    };
+    // 2. Camera setup (flattering 40 deg FOV)
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    camera.position.set(0, 0.25, 2.85);
+    cameraRef.current = camera;
 
-    // Update rotation directly from drag offset
-    const totalDx = e.clientX - dragStartRef.current.x;
-    const totalDy = e.clientY - dragStartRef.current.y;
+    // 3. Renderer setup
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance',
+    });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    rendererRef.current = renderer;
 
-    const sensitivity = 0.55;
-    setRotY(dragStartRef.current.startRotY + totalDx * sensitivity);
-    setRotX(
-      Math.max(-32, Math.min(32, dragStartRef.current.startRotX - totalDy * sensitivity))
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    // 4. OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.enableZoom = false; // Disable zoom to prevent page hijacking
+    controls.enablePan = false;  // Keep centered
+    controls.maxPolarAngle = Math.PI / 2 + 0.2; // Don't look too far underneath
+    controls.minPolarAngle = Math.PI / 3.5;     // Flattering 3/4 angle
+    controls.autoRotate = false; // We drive rotation manually during intro and idle
+    controlsRef.current = controls;
+
+    controls.addEventListener('start', () => {
+      isInteractingRef.current = true;
+      triggerHaptic('light');
+    });
+
+    controls.addEventListener('end', () => {
+      isInteractingRef.current = false;
+    });
+
+    // 5. Gourmet Warm Lighting Setup (Soft, realistic, NO plastic shine)
+    const ambientLight = new THREE.AmbientLight(0xfff6ea, 1.25);
+    scene.add(ambientLight);
+
+    // Key Light: warm brioche & cheddar glow
+    const keyLight = new THREE.DirectionalLight(0xfff3e0, 1.6);
+    keyLight.position.set(2.5, 3.5, 2.5);
+    scene.add(keyLight);
+
+    // Fill Light: subtle cool counter
+    const fillLight = new THREE.DirectionalLight(0xffe8cc, 0.9);
+    fillLight.position.set(-2.5, 1.5, 2.0);
+    scene.add(fillLight);
+
+    // Rim Light: dramatic golden backlight
+    const rimLight = new THREE.DirectionalLight(0xf59e0b, 2.2);
+    rimLight.position.set(0, 2.0, -3.0);
+    scene.add(rimLight);
+
+    // Subtle bottom bounce
+    const bounceLight = new THREE.DirectionalLight(0xffeedd, 0.5);
+    bounceLight.position.set(0, -2.5, 1.0);
+    scene.add(bounceLight);
+
+    // 6. Model Group
+    const modelGroup = new THREE.Group();
+    scene.add(modelGroup);
+    modelGroupRef.current = modelGroup;
+
+    // Start with 720 deg rotation for intro
+    modelGroup.rotation.y = -Math.PI * 4;
+    modelGroup.scale.set(0.2, 0.2, 0.2);
+
+    // 7. Load Textures & GLB Model
+    const textureLoader = new THREE.TextureLoader();
+
+    // High resolution original photo for front projection
+    const photoTex = textureLoader.load('/Hamburguesa_transparente.png');
+    photoTex.colorSpace = THREE.SRGBColorSpace;
+
+    // Enhanced 2048 UV texture
+    const baseTex = textureLoader.load('/burger_texture_2048.jpg');
+    baseTex.colorSpace = THREE.SRGBColorSpace;
+    baseTex.flipY = false;
+
+    // GLTFLoader with MeshoptDecoder for fast decompression
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+
+    const modelPath = '/burger_opt.glb';
+
+    loader.load(
+      modelPath,
+      (gltf) => {
+        const root = gltf.scene;
+
+        // Auto-center and normalize size
+        const box = new THREE.Box3().setFromObject(root);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const targetScale = 2.0 / maxDim;
+
+        root.position.x = -center.x * targetScale;
+        root.position.y = -center.y * targetScale;
+        root.position.z = -center.z * targetScale;
+        root.scale.set(targetScale, targetScale, targetScale);
+
+        // Bounds for front photo projection:
+        const minX = -0.5 * targetScale;
+        const maxX = 0.5 * targetScale;
+        const minY = 0;
+        const maxY = 0.793 * targetScale;
+
+        // PBR Material Enhancement with Front Photo Projection
+        root.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            const mat = mesh.material as THREE.MeshStandardMaterial;
+
+            mat.map = baseTex;
+            mat.roughness = 0.76; // Natural food diffuse, removes plastic shine
+            mat.metalness = 0.03;
+            mat.needsUpdate = true;
+
+            // Project high-resolution photo on front faces
+            mat.onBeforeCompile = (shader) => {
+              shader.uniforms.uPhotoTexture = { value: photoTex };
+              shader.uniforms.uPhotoBounds = { value: new THREE.Vector4(minX, maxX, minY, maxY) };
+
+              shader.vertexShader = `
+                varying vec3 vModelPos;
+                varying vec3 vModelNorm;
+                ${shader.vertexShader}
+              `.replace(
+                '#include <begin_vertex>',
+                `
+                #include <begin_vertex>
+                vModelPos = position;
+                vModelNorm = normal;
+                `
+              );
+
+              shader.fragmentShader = `
+                uniform sampler2D uPhotoTexture;
+                uniform vec4 uPhotoBounds;
+                varying vec3 vModelPos;
+                varying vec3 vModelNorm;
+                ${shader.fragmentShader}
+              `.replace(
+                '#include <map_fragment>',
+                `
+                #include <map_fragment>
+                
+                // Front projective texturing using the high-resolution photo
+                if (vModelNorm.z > 0.02) {
+                  float u = (vModelPos.x - uPhotoBounds.x) / (uPhotoBounds.y - uPhotoBounds.x);
+                  float v = 1.0 - (vModelPos.y - uPhotoBounds.z) / (uPhotoBounds.w - uPhotoBounds.z);
+                  
+                  if (u >= 0.0 && u <= 1.0 && v >= 0.0 && v <= 1.0) {
+                    vec4 photoCol = texture2D(uPhotoTexture, vec2(u, v));
+                    if (photoCol.a > 0.08) {
+                      float blendFactor = smoothstep(0.02, 0.40, vModelNorm.z) * photoCol.a;
+                      diffuseColor.rgb = mix(diffuseColor.rgb, photoCol.rgb, blendFactor);
+                    }
+                  }
+                }
+                `
+              );
+            };
+          }
+        });
+
+        modelGroup.add(root);
+        setIsLoaded(true);
+        triggerHaptic('medium');
+        if (onLoaded) onLoaded();
+      },
+      undefined,
+      (err) => {
+        console.warn('GLB load error, using fallback:', err);
+        setHasError(true);
+      }
     );
-  };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!isDragging) return;
-    setIsDragging(false);
+    // 8. Animation & Render Loop
+    let clock = new THREE.Clock();
 
-    if (containerRef.current && containerRef.current.hasPointerCapture(e.pointerId)) {
-      containerRef.current.releasePointerCapture(e.pointerId);
-    }
-  };
+    const animate = () => {
+      animFrameIdRef.current = requestAnimationFrame(animate);
 
-  // Double tap/click to reset orientation
-  const handleDoubleClick = () => {
-    setRotX(0);
-    setRotY(0);
-    velocityRef.current = { vx: 0, vy: 0 };
-    triggerHaptic('medium');
-  };
+      const elapsedTime = clock.getElapsedTime();
 
-  // Entrance scale & depth calculations
-  const scale = introFinished ? 1 : 0.25 + 0.75 * introProgress;
-  const opacity = introFinished ? 1 : Math.min(1, introProgress * 1.5);
-  const translateZ = introFinished ? 0 : -280 * (1 - introProgress);
+      // Intro 720 deg spin & scale-in animation
+      if (modelGroupRef.current) {
+        if (!introStartTimeRef.current) {
+          introStartTimeRef.current = performance.now();
+        }
 
-  return (
-    <div
-      ref={containerRef}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onDoubleClick={handleDoubleClick}
-      className={`relative w-full aspect-square max-w-[480px] sm:max-w-[540px] flex items-center justify-center select-none touch-none cursor-grab active:cursor-grabbing ${className}`}
-      style={{ perspective: '1100px' }}
-    >
-      {/* Golden Aura Glow Backdrop behind burger */}
-      <div
-        className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-gradient-to-r from-amber-500/25 via-yellow-500/20 to-orange-600/15 blur-3xl pointer-events-none transition-transform duration-700"
-        style={{
-          transform: `scale(${introFinished ? 1 + Math.sin(rotY * 0.05) * 0.08 : introProgress * 1.2})`,
-        }}
-      />
+        const introDuration = 1400; // 1.4s
+        const introElapsed = performance.now() - introStartTimeRef.current;
+        const introT = Math.min(1, introElapsed / introDuration);
 
-      {/* 3D Dynamic Floor Shadow */}
-      <div
-        className="absolute bottom-4 sm:bottom-6 w-3/4 h-12 rounded-[100%] bg-black/65 blur-xl pointer-events-none transition-transform duration-75"
-        style={{
-          transform: `
-            scale(${scale * (1 - Math.abs(rotX) * 0.005)})
-            translateX(${rotY * 0.8}px)
-            scaleY(${0.7 + rotX * 0.01})
-          `,
-          opacity: opacity * 0.75,
-        }}
-      />
+        if (introT < 1) {
+          // Cubic ease out
+          const easeOut = 1 - Math.pow(1 - introT, 3.2);
+          modelGroupRef.current.rotation.y = -Math.PI * 4 * (1 - easeOut);
+          const currentScale = 0.2 + 0.8 * easeOut;
+          modelGroupRef.current.scale.set(currentScale, currentScale, currentScale);
+        } else {
+          // Intro complete: subtle floating bob & idle auto-rotation if not dragging
+          const bobY = Math.sin(elapsedTime * 1.6) * 0.04;
+          modelGroupRef.current.position.y = bobY;
 
-      {/* 3D Burger Container with Perspective & Hardware Transform */}
-      <div
-        className="relative w-full h-full flex items-center justify-center will-change-transform"
-        style={{
-          transformStyle: 'preserve-3d',
-          transform: `
-            translateZ(${translateZ}px)
-            scale3d(${scale}, ${scale}, ${scale})
-            rotateX(${rotX}deg)
-            rotateY(${rotY}deg)
-          `,
-          opacity,
-          transition: isDragging ? 'none' : introFinished ? 'transform 0.08s ease-out' : 'none',
-        }}
-      >
-        {/* Real Ultra-Crisp Burguerama Smash Burger */}
-        <picture className="w-full h-full flex items-center justify-center pointer-events-none drop-shadow-[0_22px_35px_rgba(0,0,0,0.85)]">
+          if (!isInteractingRef.current) {
+            // Gentle continuous auto-spin
+            modelGroupRef.current.rotation.y += 0.005;
+          }
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    // 9. Resize observer
+    const handleResize = () => {
+      if (!container || !camera || !renderer) return;
+      const newW = container.clientWidth;
+      const newH = container.clientHeight;
+      camera.aspect = newW / newH;
+      camera.updateProjectionMatrix();
+      renderer.setSize(newW, newH);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+      controls.dispose();
+      renderer.dispose();
+    };
+  }, [onLoaded]);
+
+  // Fallback: If WebGL fails, render high-res image
+  if (hasError) {
+    return (
+      <div className={`relative w-full aspect-square max-w-[480px] sm:max-w-[540px] flex items-center justify-center ${className}`}>
+        <div className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
+        <picture className="w-full h-full flex items-center justify-center p-4">
           <source srcSet="/Hamburguesa_hero.webp" type="image/webp" />
           <img
             src="/Hamburguesa_transparente.png"
-            alt="Burguerama Smash Burger Artesanal"
-            className="w-[92%] h-[92%] sm:w-[94%] sm:h-[94%] object-contain select-none filter contrast-[1.04] brightness-[1.02]"
-            draggable={false}
+            alt="Burguerama Smash Burger"
+            className="w-[90%] h-[90%] object-contain select-none filter contrast-[1.04]"
           />
         </picture>
-
-        {/* Dynamic Specular Sheen (Reacts to 3D light angle) */}
-        <div
-          className="absolute inset-0 pointer-events-none rounded-full mix-blend-overlay opacity-30 transition-opacity duration-300"
-          style={{
-            background: `radial-gradient(circle at ${50 - rotY * 0.8}% ${40 + rotX * 0.8}%, rgba(255,245,210,0.6) 0%, transparent 60%)`,
-          }}
-        />
       </div>
+    );
+  }
+
+  return (
+    <div
+      className={`relative w-full aspect-square max-w-[480px] sm:max-w-[540px] flex items-center justify-center select-none ${className}`}
+    >
+      {/* Ambient Warm Golden Glow Backdrop */}
+      <div className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-gradient-to-tr from-amber-500/20 via-yellow-500/15 to-orange-600/10 blur-3xl pointer-events-none" />
+
+      {/* Dynamic 3D Floor Shadow */}
+      <div className="absolute bottom-4 sm:bottom-6 w-3/4 h-10 rounded-[100%] bg-black/75 blur-xl pointer-events-none" />
+
+      {/* Three.js Canvas Container (Clean, no buttons, no badges) */}
+      <div
+        ref={mountRef}
+        className="relative w-full h-full cursor-grab active:cursor-grabbing touch-none flex items-center justify-center"
+      />
     </div>
   );
 };
