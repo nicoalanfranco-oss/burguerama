@@ -1,5 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
+import { MapPin, ExternalLink } from 'lucide-react';
+
+const GOOGLE_MAPS_URL = 'https://maps.app.goo.gl/Cd4jW4N6c2BNTujSA';
 
 /**
  * Coordenadas oficiales de la ruta por las calles reales de Tacuarembó:
@@ -252,6 +255,15 @@ export const DeliveryMapLive: React.FC = () => {
     }).addTo(map);
     storeMarkerRef.current = storeMarker;
 
+    // Al hacer clic en cualquier parte del mapa o en los marcadores, abrir la ficha oficial de Burguerama en Google Maps
+    const handleOpenGoogleMaps = () => {
+      window.open(GOOGLE_MAPS_URL, '_blank', 'noopener,noreferrer');
+    };
+
+    map.on('click', handleOpenGoogleMaps);
+    storeMarker.on('click', handleOpenGoogleMaps);
+    motoMarker.on('click', handleOpenGoogleMaps);
+
     mapInstanceRef.current = map;
 
     // =========================================================================
@@ -354,10 +366,27 @@ export const DeliveryMapLive: React.FC = () => {
   }, []);
 
   return (
-    <div
-      ref={mapContainerRef}
-      className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-white/10 select-none shadow-inner z-0"
-    />
+    <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-white/10 select-none shadow-inner z-0 group">
+      <div
+        ref={mapContainerRef}
+        className="w-full h-full cursor-pointer"
+        title="Clic para abrir la ubicación de Burguerama en Google Maps"
+      />
+
+      {/* Floating CTA Badge directo a Google Maps */}
+      <a
+        href={GOOGLE_MAPS_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute top-3 right-3 z-[1000] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/80 hover:bg-black text-white text-[11px] font-bold backdrop-blur-md border border-white/15 shadow-xl transition-all active:scale-95 hover:text-amber-400 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+        title="Ver ficha oficial de Burguerama en Google Maps"
+      >
+        <MapPin className="w-3.5 h-3.5 text-red-500" />
+        <span>Abrir en Google Maps</span>
+        <ExternalLink className="w-3 h-3 text-gray-400" />
+      </a>
+    </div>
   );
 };
 

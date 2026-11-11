@@ -148,7 +148,7 @@ export const CulturaBurgueramaSection: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <a
-                href="https://www.google.com/maps/search/?api=1&query=-31.7158226,-55.978271"
+                href="https://maps.app.goo.gl/Cd4jW4N6c2BNTujSA"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/10"
