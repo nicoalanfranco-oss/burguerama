@@ -173,9 +173,9 @@ export const CulturaBurgueramaSection: React.FC = () => {
                 </filter>
               </defs>
 
-              {/* Real OpenStreetMap Tacuarembó in white / light mode */}
+              {/* Clean OpenStreetMap Tacuarembó without any drawn lines */}
               <image
-                href="/mapa_tacuarembo_real.webp"
+                href="/mapa_tacuarembo_clean.jpg"
                 x="0"
                 y="0"
                 width="942"
@@ -207,15 +207,28 @@ export const CulturaBurgueramaSection: React.FC = () => {
                 className="animate-delivery-route"
               />
 
-              {/* Destination Point: Burguerama Sarandí 312 Bis */}
+              {/* Destination Point: Google Maps-style Red Pin Marker */}
               <g transform="translate(637, 356)">
-                {/* Pulsing Beacon Rings on Ground */}
-                <circle r="18" fill="none" stroke="#f59e0b" strokeWidth="2.5" opacity="0.4" className="animate-ping" />
-                <circle r="11" fill="#f59e0b" opacity="0.3" />
-                <circle r="6" fill="#f59e0b" />
-                
+                {/* Google Maps red pin marker */}
+                <g transform="translate(0, -36)">
+                  {/* Drop shadow */}
+                  <ellipse cx="0" cy="36" rx="6" ry="3" fill="rgba(0,0,0,0.25)" />
+                  {/* Pin body — Google Maps red */}
+                  <path
+                    d="M0-16 C-8.8-16 -16-8.8 -16 0 C-16 12 0 32 0 32 C0 32 16 12 16 0 C16-8.8 8.8-16 0-16Z"
+                    fill="#EA4335"
+                    stroke="#C5221F"
+                    strokeWidth="1.5"
+                  />
+                  {/* Inner white circle */}
+                  <circle cx="0" cy="0" r="6" fill="white" />
+                </g>
+              </g>
+
+              {/* Burguerama Store Label — appears with entrance animation when moto arrives */}
+              <g transform="translate(637, 356)" className="animate-store-appear" style={{ opacity: 0 }}>
                 {/* Store Pin: Burguerama Logo on top + Address Card below */}
-                <g transform="translate(0, -56)">
+                <g transform="translate(0, -96)">
                   {/* Circular Burguerama Logo directly above the cartel */}
                   <g transform="translate(0, -22)">
                     <circle r="22" fill="#0d0d14" stroke="#f59e0b" strokeWidth="2.5" />
