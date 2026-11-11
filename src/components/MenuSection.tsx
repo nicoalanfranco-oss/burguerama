@@ -55,7 +55,7 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
         p.nombre.toLowerCase().includes(q) ||
         (p.descripcion && p.descripcion.toLowerCase().includes(q)) ||
         (p.insumos_receta && p.insumos_receta.some((i) => i.nombre.toLowerCase().includes(q)));
-      return p.activo && matchCat && matchSearch;
+      return (p.activo !== false) && matchCat && matchSearch;
     });
 
     const matchedReventa = (activeTab === 'TODAS' || activeTab === 'BEBIDAS' || activeTab === 'FRITAS Y COCA')

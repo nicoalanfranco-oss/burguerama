@@ -72,21 +72,74 @@ canvas {
   animation: shineSweep 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-/* Food Delivery Rider Animated Trajectory in Tacuarembó */
-@keyframes deliveryRiderMove {
+/* Food Delivery Rider Animated Trajectory in Tacuarembó (GPS style Draw & Erase) */
+@keyframes deliveryRouteDrawErase {
   0% {
+    stroke-dashoffset: 1000;
+    opacity: 0;
+  }
+  2% {
+    stroke-dashoffset: 1000;
+    opacity: 1;
+  }
+  /* Route draws itself from start to Burguerama store */
+  28% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  /* Route stays fully illuminated, bike appears at start */
+  33% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  /* Bike reaches P1 (344, 323) -> first 291 units erased behind bike */
+  48% {
+    stroke-dashoffset: -291;
+    opacity: 1;
+  }
+  /* Bike reaches P2 (463, 195) -> first 592 units erased behind bike */
+  64% {
+    stroke-dashoffset: -592;
+    opacity: 1;
+  }
+  /* Bike reaches P3 destination (637, 356) -> entire path erased behind bike */
+  85% {
+    stroke-dashoffset: -1000;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 1000;
+    opacity: 0;
+  }
+}
+
+.animate-delivery-route {
+  stroke-dasharray: 1000 1000;
+  animation: deliveryRouteDrawErase 8s linear infinite;
+}
+
+@keyframes deliveryRiderMove {
+  0%, 28% {
     transform: translate(221px, 207px);
     opacity: 0;
   }
-  4% {
+  29% {
     transform: translate(221px, 207px);
     opacity: 1;
   }
-  32% {
+  33% {
+    transform: translate(221px, 207px);
+    opacity: 1;
+  }
+  48% {
     transform: translate(344px, 323px);
   }
-  62% {
+  64% {
     transform: translate(463px, 195px);
+  }
+  85% {
+    transform: translate(637px, 356px);
+    opacity: 1;
   }
   92% {
     transform: translate(637px, 356px);
@@ -99,7 +152,7 @@ canvas {
 }
 
 .animate-delivery-rider {
-  animation: deliveryRiderMove 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: deliveryRiderMove 8s linear infinite;
 }
 
 
