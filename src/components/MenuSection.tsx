@@ -48,20 +48,27 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
   const filteredItems = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
 
+    const isItemActivo = (item: any) => {
+      if (!item) return false;
+      if (item.activo === false || item.activo === 'false' || item.activo === 0) return false;
+      if (item.is_active === false || item.is_active === 'false' || item.is_active === 0) return false;
+      return true;
+    };
+
     const matchedPlatos = platos.filter((p) => {
-      const matchCat = activeTab === 'TODAS' || p.categoria === activeTab;
+      const matchCat = activeTab === 'TODAS' || p.categoria?.toUpperCase() === activeTab.toUpperCase();
       const matchSearch =
         !q ||
         p.nombre.toLowerCase().includes(q) ||
         (p.descripcion && p.descripcion.toLowerCase().includes(q)) ||
         (p.insumos_receta && p.insumos_receta.some((i) => i.nombre.toLowerCase().includes(q)));
-      return p.activo && matchCat && matchSearch;
+      return isItemActivo(p) && matchCat && matchSearch;
     });
 
-    const matchedReventa = (activeTab === 'TODAS' || activeTab === 'BEBIDAS' || activeTab === 'FRITAS Y COCA')
+    const matchedReventa = (activeTab === 'TODAS' || activeTab.toUpperCase() === 'BEBIDAS' || activeTab.toUpperCase() === 'FRITAS Y COCA')
       ? reventa.filter((r) => {
           const matchSearch = !q || r.nombre.toLowerCase().includes(q);
-          return r.activo && matchSearch;
+          return isItemActivo(r) && matchSearch;
         })
       : [];
 

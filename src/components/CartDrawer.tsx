@@ -35,11 +35,20 @@ const CATEGORY_EMOJIS: Record<string, string> = {
   'FRITAS': '🍟',
   'BEBIDAS': '🥤',
   'Bebidas': '🥤',
+  'NIÑOS': '👶',
   'NIÑXS': '👶',
   'MENÚ SECRETO': '🤫',
   'POSTRES': '🍨',
   'COMBOS': '✨',
   'todos': '✨',
+};
+
+/** Fórmula ultra-robusta de producto activo */
+const isItemActivo = (item: any): boolean => {
+  if (!item) return false;
+  if (item.activo === false || item.activo === 'false' || item.activo === 0) return false;
+  if (item.is_active === false || item.is_active === 'false' || item.is_active === 0) return false;
+  return true;
 };
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -87,27 +96,38 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     [items]
   );
 
+  // Filtrado de platos activos con fórmula segura
+  const platosActivos = useMemo(() => {
+    return (platos || []).filter(isItemActivo);
+  }, [platos]);
+
+  const reventaActiva = useMemo(() => {
+    return (reventa || []).filter(isItemActivo);
+  }, [reventa]);
+
   // Categorías únicas del menú para el panel de catálogo desktop
   const categorias = useMemo(() => {
-    const list = Array.from(new Set(platos.map(p => p.categoria || 'BURGERS')));
-    if (reventa.length > 0 && !list.includes('BEBIDAS')) list.push('BEBIDAS');
+    const list = Array.from(new Set(platosActivos.map(p => p.categoria || 'BURGERS CLÁSICAS')));
+    if (reventaActiva.length > 0 && !list.some(c => c.toUpperCase() === 'BEBIDAS')) {
+      list.push('BEBIDAS');
+    }
     return ['todos', ...list];
-  }, [platos, reventa]);
+  }, [platosActivos, reventaActiva]);
 
-  // Productos filtrados por categoría
+  // Productos filtrados por categoría (insensible a mayúsculas/minúsculas)
   const platosFiltrados = useMemo(() => {
-    if (categoria === 'todos') return platos;
-    if (categoria === 'BEBIDAS') return [];
-    return platos.filter(p => p.categoria === categoria);
-  }, [platos, categoria]);
+    if (categoria === 'todos') return platosActivos;
+    if (categoria.toUpperCase() === 'BEBIDAS') return [];
+    return platosActivos.filter(p => p.categoria?.trim().toUpperCase() === categoria.trim().toUpperCase());
+  }, [platosActivos, categoria]);
 
   const reventaFiltrada = useMemo(() => {
-    return (categoria === 'todos' || categoria === 'BEBIDAS') ? reventa : [];
-  }, [reventa, categoria]);
+    return (categoria === 'todos' || categoria.toUpperCase() === 'BEBIDAS') ? reventaActiva : [];
+  }, [reventaActiva, categoria]);
 
-  // Items para el carrusel horizontal upsell en móvil
-  const suggestedPlatos = useMemo(() => platos.slice(0, 8), [platos]);
-  const suggestedReventa = useMemo(() => reventa.slice(0, 6), [reventa]);
+  // Items para el carrusel horizontal upsell en móvil (todos los activos)
+  const suggestedPlatos = useMemo(() => platosActivos, [platosActivos]);
+  const suggestedReventa = useMemo(() => reventaActiva, [reventaActiva]);
 
   if (!isOpen) return null;
 
@@ -404,45 +424,48 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* ═══════════════════════════════════════════════════════════════
-          DESKTOP (md:flex) — MODAL AMPLIO Y CENTRADO FORMATO NALÚ POS
+          DESKTOP (md:flex) — MODAL AMPLIO Y COMPLETO FORMATO NALÚ POS
+          Mismas dimensiones que Nalú: 100% de alto (h-full/h-screen),
+          ancho espacioso max-w-[1200px], panel de carrito compacto (300px)
+          y grilla fluida auto-fill para 5 columnas de platos.
           ═══════════════════════════════════════════════════════════════ */}
-      <div className="hidden md:flex fixed inset-0 items-center justify-center p-4 lg:p-6 pointer-events-none">
+      <div className="hidden md:flex fixed inset-0 items-stretch justify-center pointer-events-none">
         <div
-          className="pointer-events-auto relative w-full max-w-[1240px] h-[90vh] max-h-[860px] bg-[#111117] rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+          className="pointer-events-auto relative w-full max-w-[1200px] h-full h-screen max-h-screen bg-[#111117] md:border-x md:border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 1. Header Único Unificado Superior (Abarca todo el ancho) */}
-          <div className="px-6 py-4 border-b border-white/10 bg-[#161622] flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3.5">
+          <div className="px-5 py-3 border-b border-white/10 bg-[#161622] flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
               <img
                 src={marca?.logo_url || '/Burguerama_logo.png'}
                 alt={marca?.nombre || 'Burguerama'}
-                className="h-11 w-auto object-contain"
+                className="h-9 w-auto object-contain"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
                 }}
               />
               <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-black text-white uppercase tracking-wider font-display">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-black text-white uppercase tracking-wider font-display">
                     Tu Pedido
                   </h2>
                   {cartCount > 0 && (
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500 text-black">
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-amber-500 text-black">
                       {cartCount}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mt-0.5">
+                  <Clock className="w-3 h-3 text-amber-400" />
                   <span>Entrega en Tacuarembó · {marca?.tiempo_espera_delivery || '35–50 min'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {/* Badge de Abierto ahora */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>Abierto ahora</span>
               </div>
@@ -451,26 +474,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white flex items-center justify-center transition-all ml-1"
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white flex items-center justify-center transition-all ml-1"
                 aria-label="Cerrar ventana"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           {/* 2. Barra de Navegación de Pestañas Unificada (Abarca todo el ancho) */}
-          <div className="px-6 py-2.5 bg-[#13131c] border-b border-white/10 shrink-0">
-            <div className="flex p-1 bg-[#0b0b10] rounded-2xl border border-white/10 gap-1.5">
+          <div className="px-5 py-2 bg-[#13131c] border-b border-white/10 shrink-0">
+            <div className="flex p-1 bg-[#0b0b10] rounded-xl border border-white/10 gap-1.5">
               <button
                 type="button"
                 onClick={() => {
                   triggerHaptic('light');
                   setActiveTab('carrito');
                 }}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                className={`flex-1 py-2 px-4 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                   activeTab === 'carrito'
-                    ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/25'
+                    ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -484,9 +507,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   triggerHaptic('light');
                   setActiveTab('pedidos');
                 }}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all relative ${
+                className={`flex-1 py-2 px-4 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all relative ${
                   activeTab === 'pedidos'
-                    ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/25'
+                    ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -514,12 +537,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
             </div>
           ) : (
-            /* Vista Dual: Catálogo a la izquierda + Carrito a la derecha */
+            /* Vista Dual: Catálogo espacioso a la izquierda + Carrito compacto a la derecha (estilo Nalú) */
             <div className="flex-1 flex min-h-0 overflow-hidden">
-              {/* Panel Izquierdo: Catálogo y Categorías (62%) */}
+              {/* Panel Izquierdo: Catálogo y Categorías (espacioso) */}
               <div className="flex-1 flex flex-col min-w-0 border-r border-white/10 bg-[#0d0d14]">
                 {/* Category Pills Bar */}
-                <div className="flex items-center gap-2 overflow-x-auto px-5 py-3 border-b border-white/5 scrollbar-none shrink-0 bg-[#111117]/60">
+                <div className="flex items-center gap-2 overflow-x-auto px-4 py-2.5 border-b border-white/5 scrollbar-none shrink-0 bg-[#111117]/60">
                   {categorias.map((cat) => (
                     <button
                       key={cat}
@@ -527,9 +550,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         triggerHaptic('light');
                         setCategoria(cat);
                       }}
-                      className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                      className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                         categoria === cat
-                          ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/25'
+                          ? 'bg-amber-500 text-black shadow-md shadow-amber-500/25'
                           : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
                       }`}
                     >
@@ -539,9 +562,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   ))}
                 </div>
 
-                {/* Grilla de Productos */}
-                <div className="flex-1 overflow-y-auto p-4 lg:p-5">
-                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                {/* Grilla de Productos con auto-fill idéntica a Nalú (entran 4-5 productos por fila) */}
+                <div className="flex-1 overflow-y-auto p-3.5">
+                  <div className="grid [grid-template-columns:repeat(auto-fill,minmax(145px,1fr))] gap-2.5">
                     {/* Platos elaborados */}
                     {platosFiltrados.map((plato) => (
                       <div
@@ -554,10 +577,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             onQuickAdd(plato);
                           }
                         }}
-                        className="bg-[#161622] rounded-2xl border border-white/10 p-3 flex flex-col justify-between hover:border-amber-500/40 hover:-translate-y-1 transition-all cursor-pointer group shadow-md"
+                        className="bg-[#161622] rounded-xl border border-white/10 p-2 flex flex-col justify-between hover:border-amber-500/40 hover:-translate-y-0.5 transition-all cursor-pointer group shadow-sm"
                       >
                         <div>
-                          <div className="relative w-full h-28 rounded-xl bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-2.5">
+                          <div className="relative w-full h-24 rounded-lg bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5">
                             {plato.imagen_url ? (
                               <img
                                 src={plato.imagen_url}
@@ -568,22 +591,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                 }}
                               />
                             ) : (
-                              <span className="text-3xl">🍔</span>
+                              <span className="text-2xl">🍔</span>
                             )}
-                            <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-black/80 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
-                              {CATEGORY_EMOJIS[plato.categoria] || '🍔'} {plato.categoria}
+                            <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-black/80 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
+                              {plato.categoria}
                             </span>
                             {plato.es_personalizable && (
-                              <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
+                              <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
                                 <Sparkles className="w-2.5 h-2.5" />
                                 <span>Armar</span>
                               </span>
                             )}
                           </div>
-                          <h4 className="text-xs font-black text-white uppercase truncate font-display">
+                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display leading-tight">
                             {plato.nombre}
                           </h4>
-                          <p className="font-mono text-xs font-black text-amber-400 mt-1">
+                          <p className="font-mono text-xs font-black text-amber-400 mt-0.5">
                             ${Number(plato.precio_venta).toFixed(0)}
                           </p>
                         </div>
@@ -599,16 +622,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               onQuickAdd(plato);
                             }
                           }}
-                          className="mt-2.5 w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
+                          className="mt-2 w-full py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
                         >
                           {plato.es_personalizable ? (
                             <>
-                              <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
+                              <Sparkles className="w-3 h-3 stroke-[2.5]" />
                               <span>Armar</span>
                             </>
                           ) : (
                             <>
-                              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                              <Plus className="w-3 h-3 stroke-[3]" />
                               <span>Agregar</span>
                             </>
                           )}
@@ -624,10 +647,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           triggerHaptic('light');
                           if (onQuickAddReventa) onQuickAddReventa(rev);
                         }}
-                        className="bg-[#161622] rounded-2xl border border-white/10 p-3 flex flex-col justify-between hover:border-sky-500/40 hover:-translate-y-1 transition-all cursor-pointer group shadow-md"
+                        className="bg-[#161622] rounded-xl border border-white/10 p-2 flex flex-col justify-between hover:border-sky-500/40 hover:-translate-y-0.5 transition-all cursor-pointer group shadow-sm"
                       >
                         <div>
-                          <div className="relative w-full h-28 rounded-xl bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-2.5">
+                          <div className="relative w-full h-24 rounded-lg bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5">
                             {rev.imagen_url ? (
                               <img
                                 src={rev.imagen_url}
@@ -635,16 +658,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                 className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
                               />
                             ) : (
-                              <span className="text-3xl">🥤</span>
+                              <span className="text-2xl">🥤</span>
                             )}
-                            <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-black/80 text-sky-400 border border-sky-500/30 backdrop-blur-sm">
+                            <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-black/80 text-sky-400 border border-sky-500/30 backdrop-blur-sm">
                               🥤 Bebidas
                             </span>
                           </div>
-                          <h4 className="text-xs font-black text-white uppercase truncate font-display">
+                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display leading-tight">
                             {rev.nombre}
                           </h4>
-                          <p className="font-mono text-xs font-black text-amber-400 mt-1">
+                          <p className="font-mono text-xs font-black text-amber-400 mt-0.5">
                             ${Number(rev.precio_venta).toFixed(0)}
                           </p>
                         </div>
@@ -656,9 +679,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             triggerHaptic('light');
                             if (onQuickAddReventa) onQuickAddReventa(rev);
                           }}
-                          className="mt-2.5 w-full py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
+                          className="mt-2 w-full py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
                         >
-                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          <Plus className="w-3 h-3 stroke-[3]" />
                           <span>Agregar</span>
                         </button>
                       </div>
@@ -667,15 +690,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               </div>
 
-              {/* Panel Derecho: Carrito Desktop (38%) */}
-              <div className="w-[360px] lg:w-[400px] shrink-0 flex flex-col bg-[#111117]">
+              {/* Panel Derecho: Carrito Desktop compacto (300px, idéntico a Nalú) */}
+              <div className="w-[300px] shrink-0 flex flex-col bg-[#111117]">
                 {/* Header de columna Carrito estilo Nalú */}
-                <div className="px-5 py-3.5 border-b border-white/10 bg-[#161622] flex items-center justify-between shrink-0">
+                <div className="px-4 py-3 border-b border-white/10 bg-[#161622] flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2">
                     <img
                       src={marca?.logo_url || '/Burguerama_logo.png'}
                       alt="Burguerama"
-                      className="h-5 w-auto object-contain"
+                      className="h-4 w-auto object-contain"
                     />
                     <span className="text-xs font-black text-white uppercase tracking-wider font-display">
                       Tu Pedido
@@ -689,18 +712,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
 
                 {/* Lista de productos en carrito */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
                   {items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
-                      <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-3xl flex items-center justify-center">
+                    <div className="h-full flex flex-col items-center justify-center text-center p-4 space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-2xl flex items-center justify-center">
                         🍔
                       </div>
                       <div>
-                        <h4 className="text-sm font-black text-white uppercase tracking-wider font-display">
+                        <h4 className="text-xs font-black text-white uppercase tracking-wider font-display">
                           Tu pedido está vacío
                         </h4>
-                        <p className="text-xs text-gray-400 mt-1 max-w-[200px]">
-                          Elegí tus smash burgers y acompañamientos a la izquierda ←
+                        <p className="text-[11px] text-gray-400 mt-1 max-w-[180px]">
+                          Elegí tus smash burgers y acompañamientos del menú ←
                         </p>
                       </div>
                     </div>
@@ -708,38 +731,38 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     items.map((item) => (
                       <div
                         key={item.id}
-                        className="p-3 rounded-2xl bg-[#171724] border border-white/10 flex gap-3 items-center group"
+                        className="p-2.5 rounded-xl bg-[#171724] border border-white/10 flex gap-2.5 items-center group"
                       >
-                        <div className="w-12 h-12 rounded-xl bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-lg bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
                           {item.imagen_url ? (
                             <img
                               src={item.imagen_url}
                               alt={item.nombre}
-                              className="w-full h-full object-contain p-1"
+                              className="w-full h-full object-contain p-0.5"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
                               }}
                             />
                           ) : (
-                            <span className="text-lg">🍔</span>
+                            <span className="text-base">🍔</span>
                           )}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h5 className="text-xs font-black text-white uppercase truncate font-display">
+                          <h5 className="text-[11px] font-black text-white uppercase truncate font-display">
                             {item.nombre}
                           </h5>
                           <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
                             ${(item.precio_unitario * item.cantidad).toLocaleString()}
                           </span>
                           {item.notas && (
-                            <span className="text-[10px] text-gray-400 italic block truncate">
+                            <span className="text-[9px] text-gray-400 italic block truncate">
                               "{item.notas}"
                             </span>
                           )}
 
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <div className="flex items-center gap-1.5 bg-[#20202e] border border-white/10 rounded-lg px-2 py-0.5">
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <div className="flex items-center gap-1 bg-[#20202e] border border-white/10 rounded-md px-1.5 py-0.5">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -749,9 +772,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                 className="p-0.5 text-gray-400 hover:text-white"
                                 aria-label="Disminuir"
                               >
-                                <Minus className="w-3 h-3" />
+                                <Minus className="w-2.5 h-2.5" />
                               </button>
-                              <span className="font-mono text-xs font-bold text-white px-1">
+                              <span className="font-mono text-[11px] font-bold text-white px-0.5">
                                 {item.cantidad}
                               </span>
                               <button
@@ -763,7 +786,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                 className="p-0.5 text-gray-400 hover:text-white"
                                 aria-label="Aumentar"
                               >
-                                <Plus className="w-3 h-3" />
+                                <Plus className="w-2.5 h-2.5" />
                               </button>
                             </div>
 
@@ -776,7 +799,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               className="p-1 text-gray-500 hover:text-red-400 transition-colors ml-auto"
                               title="Eliminar"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
@@ -787,10 +810,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 {/* Footer Sticky de Carrito Desktop: Total + Botón Confirmar */}
                 {items.length > 0 && (
-                  <div className="p-5 border-t border-white/10 bg-[#161622] space-y-3.5 shrink-0">
+                  <div className="p-3.5 border-t border-white/10 bg-[#161622] space-y-2.5 shrink-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Total</span>
-                      <strong className="font-mono text-2xl font-black text-white">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total</span>
+                      <strong className="font-mono text-xl font-black text-white">
                         ${total.toLocaleString()}
                       </strong>
                     </div>
@@ -800,10 +823,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         triggerHaptic('medium');
                         onProceedToCheckout();
                       }}
-                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black font-black text-sm uppercase tracking-wider shadow-xl shadow-amber-500/25 hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-1.5"
                     >
                       <span>Confirmar Pedido</span>
-                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                     </button>
                   </div>
                 )}

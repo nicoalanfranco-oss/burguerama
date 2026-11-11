@@ -82,7 +82,7 @@ export const REAL_PLATOS: ProductoElaborado[] = ((realData.elaborados || []) as 
   es_personalizable: Boolean(p.es_personalizable),
   formato_venta: 'unidad',
   imagen_url: p.imagen_url || FALLBACK_PLATO_IMG,
-  activo: Boolean(p.activo),
+  activo: p.activo !== false && (p as any).is_active !== false,
   insumos_receta: (p.insumos_receta || []).map((i: any) => ({
     insumo_id: Number(i.insumo_id),
     nombre: i.nombre,
@@ -103,7 +103,7 @@ export const REAL_REVENTA: ProductoReventa[] = ((realData.reventa || []) as any[
   precio_venta: Number(r.precio_venta),
   stock_actual: r.stock_actual || 24,
   imagen_url: r.imagen_url || null,
-  activo: Boolean(r.activo),
+  activo: r.activo !== false && (r as any).is_active !== false,
 }));
 
 export const REAL_GRUPOS: GrupoOpciones[] = ((realData.gruposOpciones || []) as any[]).map(g => ({
@@ -180,6 +180,7 @@ export async function fetchBurgueramaCatalogo(): Promise<{
         elaborados: elaboradosBD.length > 0
           ? elaboradosBD.map((p: any) => ({
               ...p,
+              activo: p.activo !== false && p.is_active !== false,
               precio_venta: Number(p.precio_venta),
               imagen_url: p.imagen_url || FALLBACK_PLATO_IMG,
               insumos_receta: (p.insumos_receta || []).map((i: any) => ({
@@ -195,6 +196,7 @@ export async function fetchBurgueramaCatalogo(): Promise<{
         reventa: (data.reventa && data.reventa.length > 0)
           ? data.reventa.map((r: any) => ({
               ...r,
+              activo: r.activo !== false && r.is_active !== false,
               precio_venta: Number(r.precio_venta),
               imagen_url: r.imagen_url || null,
             }))
