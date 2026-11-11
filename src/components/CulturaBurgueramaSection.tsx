@@ -282,3 +282,4 @@ export const CulturaBurgueramaSection: React.FC = () => {
     </section>
   );
 };
+
