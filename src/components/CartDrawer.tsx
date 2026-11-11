@@ -3,7 +3,7 @@ import { CartItem, ProductoElaborado, ProductoReventa, MarcaInfo } from '../type
 import { PedidoActivo, MisPedidosView } from './MisPedidosView';
 import {
   X, Trash2, Plus, Minus, ShoppingBag, ArrowRight,
-  Clock, Sparkles
+  Clock, Sparkles, Search
 } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
 
@@ -24,7 +24,7 @@ interface CartDrawerProps {
   onProceedToCheckout: () => void;
 }
 
-/** Emojis por categoría para el catálogo */
+/** Emojis y etiquetas breves por categoría para filtros y badges */
 const CATEGORY_EMOJIS: Record<string, string> = {
   'BURGERS CLÁSICAS': '🍔',
   'BURGERS': '🍔',
@@ -41,6 +41,21 @@ const CATEGORY_EMOJIS: Record<string, string> = {
   'POSTRES': '🍨',
   'COMBOS': '✨',
   'todos': '✨',
+};
+
+/** Título corto para pills en móvil */
+const CATEGORY_SHORT_NAMES: Record<string, string> = {
+  'BURGERS CLÁSICAS': 'Clásicas',
+  'SPECIALS': 'Specials',
+  'ALTAGAMA': 'Altagama',
+  'CRUNCH CLUB': 'Crunch',
+  'FRITAS Y COCA': 'Fritas',
+  'BEBIDAS': 'Bebidas',
+  'Bebidas': 'Bebidas',
+  'NIÑOS': 'Niños',
+  'NIÑXS': 'Niños',
+  'MENÚ SECRETO': 'Secreto',
+  'todos': 'Todos',
 };
 
 /** Fórmula ultra-robusta de producto activo */
@@ -69,9 +84,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'carrito' | 'pedidos'>(initialTab);
   /** Desktop: categoría activa en el panel izquierdo de menú */
-  const [categoria, setCategoria] = useState('todos');
-  /** Mobile: Menú vs Pedido */
-  const [mobileTab, setMobileTab] = useState<'menu' | 'pedido'>('pedido');
+  const [categoriaDesktop, setCategoriaDesktop] = useState('todos');
+
+  /** Mobile: Filtro rápido por categoría y búsqueda en carrusel de agregar más */
+  const [mobileSearch, setMobileSearch] = useState<string>('');
+  const [mobileFilterCat, setMobileFilterCat] = useState<string>('todos');
 
   // Sincronizar pestaña inicial al abrir
   useEffect(() => {
@@ -80,12 +97,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   }, [isOpen, initialTab]);
 
-  // En móvil: si está vacío va a menú, si tiene items va a pedido
+  // Limpiar búsqueda al abrir
   useEffect(() => {
     if (isOpen) {
-      setMobileTab(items.length === 0 ? 'menu' : 'pedido');
+      setMobileSearch('');
+      setMobileFilterCat('todos');
     }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const total = useMemo(
     () => items.reduce((acc, it) => acc + it.precio_unitario * it.cantidad, 0),
@@ -96,7 +114,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     [items]
   );
 
-  // Filtrado de platos activos con fórmula segura
+  // Filtrado de platos y bebidas activos con fórmula segura
   const platosActivos = useMemo(() => {
     return (platos || []).filter(isItemActivo);
   }, [platos]);
@@ -105,7 +123,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     return (reventa || []).filter(isItemActivo);
   }, [reventa]);
 
-  // Categorías únicas del menú para el panel de catálogo desktop
+  // Conteo de platos por categoría para los filtros de resumen móvil
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      todos: platosActivos.length + reventaActiva.length,
+    };
+    platosActivos.forEach((p) => {
+      const cat = p.categoria || 'BURGERS CLÁSICAS';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    if (reventaActiva.length > 0) {
+      counts['BEBIDAS'] = reventaActiva.length;
+    }
+    return counts;
+  }, [platosActivos, reventaActiva]);
+
+  // Lista ordenada de categorías únicas
   const categorias = useMemo(() => {
     const list = Array.from(new Set(platosActivos.map(p => p.categoria || 'BURGERS CLÁSICAS')));
     if (reventaActiva.length > 0 && !list.some(c => c.toUpperCase() === 'BEBIDAS')) {
@@ -114,309 +147,68 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     return ['todos', ...list];
   }, [platosActivos, reventaActiva]);
 
-  // Productos filtrados por categoría (insensible a mayúsculas/minúsculas)
-  const platosFiltrados = useMemo(() => {
-    if (categoria === 'todos') return platosActivos;
-    if (categoria.toUpperCase() === 'BEBIDAS') return [];
-    return platosActivos.filter(p => p.categoria?.trim().toUpperCase() === categoria.trim().toUpperCase());
-  }, [platosActivos, categoria]);
+  // Desktop: productos filtrados por categoría seleccionada
+  const platosFiltradosDesktop = useMemo(() => {
+    if (categoriaDesktop === 'todos') return platosActivos;
+    if (categoriaDesktop.toUpperCase() === 'BEBIDAS') return [];
+    return platosActivos.filter(p => p.categoria?.trim().toUpperCase() === categoriaDesktop.trim().toUpperCase());
+  }, [platosActivos, categoriaDesktop]);
 
-  const reventaFiltrada = useMemo(() => {
-    return (categoria === 'todos' || categoria.toUpperCase() === 'BEBIDAS') ? reventaActiva : [];
-  }, [reventaActiva, categoria]);
+  const reventaFiltradaDesktop = useMemo(() => {
+    return (categoriaDesktop === 'todos' || categoriaDesktop.toUpperCase() === 'BEBIDAS') ? reventaActiva : [];
+  }, [reventaActiva, categoriaDesktop]);
 
-  // Items para el carrusel horizontal upsell en móvil (todos los activos)
-  const suggestedPlatos = useMemo(() => platosActivos, [platosActivos]);
-  const suggestedReventa = useMemo(() => reventaActiva, [reventaActiva]);
+  // Mobile: lista filtrada para el carrusel de agregado rápido con búsqueda y categorías
+  const mobileFilteredItems = useMemo(() => {
+    const q = mobileSearch.trim().toLowerCase();
+
+    // 1. Filtrar elaborados
+    let filteredP = platosActivos;
+    if (mobileFilterCat !== 'todos') {
+      if (mobileFilterCat.toUpperCase() === 'BEBIDAS') {
+        filteredP = [];
+      } else {
+        filteredP = filteredP.filter(
+          p => p.categoria?.trim().toUpperCase() === mobileFilterCat.trim().toUpperCase()
+        );
+      }
+    }
+    if (q) {
+      filteredP = filteredP.filter(p =>
+        p.nombre.toLowerCase().includes(q) ||
+        (p.descripcion && p.descripcion.toLowerCase().includes(q)) ||
+        (p.categoria && p.categoria.toLowerCase().includes(q))
+      );
+    }
+
+    // 2. Filtrar reventa
+    let filteredR = reventaActiva;
+    if (mobileFilterCat !== 'todos' && mobileFilterCat.toUpperCase() !== 'BEBIDAS') {
+      filteredR = [];
+    }
+    if (q) {
+      filteredR = filteredR.filter(r =>
+        r.nombre.toLowerCase().includes(q) ||
+        (r.categoria && r.categoria.toLowerCase().includes(q))
+      );
+    }
+
+    return { platos: filteredP, reventa: filteredR };
+  }, [platosActivos, reventaActiva, mobileFilterCat, mobileSearch]);
+
+  const totalMobileMatches = mobileFilteredItems.platos.length + mobileFilteredItems.reventa.length;
+
+  // Toggle rápido de categoría móvil (tocar la activa desfiltra a 'todos')
+  const handleToggleMobileCat = (cat: string) => {
+    triggerHaptic('light');
+    if (mobileFilterCat === cat || cat === 'todos') {
+      setMobileFilterCat('todos');
+    } else {
+      setMobileFilterCat(cat);
+    }
+  };
 
   if (!isOpen) return null;
-
-  /* ─────────────────────────────────────────────────────────────
-     Bloque móvil: Panel de ítems del carrito + resumen + upsell
-     ───────────────────────────────────────────────────────────── */
-  const MobileCartItemsPanel = (
-    <div className="flex-1 overflow-y-auto flex flex-col">
-      <div className="p-4 space-y-4 flex-1">
-        {/* Cart Items List */}
-        {items.length === 0 ? (
-          <div className="py-8 px-4 text-center space-y-3 bg-[#161622]/50 rounded-2xl border border-white/5">
-            <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/20 text-3xl mx-auto flex items-center justify-center">
-              🍔
-            </div>
-            <div>
-              <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                Tu pedido está vacío
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">
-                Elegí tus smash burgers y acompañamientos del menú ←
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                PRODUCTOS AÑADIDOS ({cartCount})
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('medium');
-                  items.forEach((it) => onRemoveItem(it.id));
-                }}
-                className="text-[10px] font-bold text-gray-400 hover:text-red-400 uppercase tracking-wider"
-              >
-                Vaciar
-              </button>
-            </div>
-
-            <div className="space-y-2.5">
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 rounded-2xl bg-[#171724] border border-white/10 flex gap-3 items-center group"
-                >
-                  {/* Thumbnail */}
-                  <div className="w-14 h-14 rounded-xl bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
-                    {item.imagen_url ? (
-                      <img
-                        src={item.imagen_url}
-                        alt={item.nombre}
-                        className="w-full h-full object-contain p-1"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
-                        }}
-                      />
-                    ) : (
-                      <span className="text-xl">🍔</span>
-                    )}
-                  </div>
-
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-black text-white uppercase truncate font-display">
-                      {item.nombre}
-                    </h4>
-                    <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
-                      ${(item.precio_unitario * item.cantidad).toLocaleString()}
-                    </span>
-                    {item.notas && (
-                      <span className="text-[10px] text-gray-400 italic block truncate">
-                        "{item.notas}"
-                      </span>
-                    )}
-
-                    {/* Qty Controls */}
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex items-center gap-1.5 bg-[#20202e] border border-white/10 rounded-lg px-2 py-0.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            triggerHaptic('light');
-                            onUpdateQuantity(item.id, -1);
-                          }}
-                          className="p-0.5 text-gray-400 hover:text-white"
-                          aria-label="Disminuir"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="font-mono text-xs font-bold text-white px-1">
-                          {item.cantidad}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            triggerHaptic('light');
-                            onUpdateQuantity(item.id, 1);
-                          }}
-                          className="p-0.5 text-gray-400 hover:text-white"
-                          aria-label="Aumentar"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          triggerHaptic('medium');
-                          onRemoveItem(item.id);
-                        }}
-                        className="p-1 text-gray-500 hover:text-red-400 transition-colors ml-auto"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── UPSELL HORIZONTAL SCROLLER (Móvil) ── */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              ¿Querés agregar algo más?
-            </span>
-            <span className="text-[10px] text-gray-400 font-bold">Deslizá →</span>
-          </div>
-
-          <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none snap-x -mx-1 px-1">
-            {suggestedPlatos.map((plato) => (
-              <div
-                key={`upsell_${plato.producto_elaborado_id}`}
-                className="w-36 shrink-0 bg-[#161622] rounded-2xl border border-white/10 p-2.5 flex flex-col justify-between snap-start hover:border-amber-500/40 transition-all shadow-md group"
-              >
-                <div
-                  className="cursor-pointer"
-                  onClick={() => {
-                    triggerHaptic('light');
-                    if (onOpenDishDetail) onOpenDishDetail(plato);
-                    else if (onQuickAdd) onQuickAdd(plato);
-                  }}
-                >
-                  <div className="w-full h-20 rounded-xl bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5 relative">
-                    {plato.imagen_url ? (
-                      <img
-                        src={plato.imagen_url}
-                        alt={plato.nombre}
-                        className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
-                        }}
-                      />
-                    ) : (
-                      <span className="text-2xl">🍔</span>
-                    )}
-                    <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-black/80 text-amber-400 border border-amber-500/30">
-                      {plato.categoria}
-                    </span>
-                  </div>
-                  <h4 className="text-[11px] font-black text-white uppercase truncate font-display">
-                    {plato.nombre}
-                  </h4>
-                  <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
-                    ${Number(plato.precio_venta).toFixed(0)}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('light');
-                    if (onQuickAdd) onQuickAdd(plato);
-                  }}
-                  className="mt-2 w-full py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
-                >
-                  <Plus className="w-3 h-3 stroke-[3]" />
-                  <span>Agregar</span>
-                </button>
-              </div>
-            ))}
-
-            {suggestedReventa.map((rev) => (
-              <div
-                key={`upsell_rev_${rev.producto_reventa_id}`}
-                className="w-32 shrink-0 bg-[#161622] rounded-2xl border border-white/10 p-2.5 flex flex-col justify-between snap-start hover:border-amber-500/40 transition-all shadow-md group"
-              >
-                <div
-                  className="cursor-pointer"
-                  onClick={() => {
-                    triggerHaptic('light');
-                    if (onQuickAddReventa) onQuickAddReventa(rev);
-                  }}
-                >
-                  <div className="w-full h-20 rounded-xl bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5 relative">
-                    {rev.imagen_url ? (
-                      <img
-                        src={rev.imagen_url}
-                        alt={rev.nombre}
-                        className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
-                      />
-                    ) : (
-                      <span className="text-2xl">🥤</span>
-                    )}
-                    <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-black/80 text-sky-400 border border-sky-500/30">
-                      Bebidas
-                    </span>
-                  </div>
-                  <h4 className="text-[11px] font-black text-white uppercase truncate font-display">
-                    {rev.nombre}
-                  </h4>
-                  <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
-                    ${Number(rev.precio_venta).toFixed(0)}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('light');
-                    if (onQuickAddReventa) onQuickAddReventa(rev);
-                  }}
-                  className="mt-2 w-full py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
-                >
-                  <Plus className="w-3 h-3 stroke-[3]" />
-                  <span>Agregar</span>
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Resumen del Pedido Móvil */}
-        {items.length > 0 && (
-          <div className="p-3.5 rounded-2xl bg-[#171724] border border-white/10 space-y-2 text-xs">
-            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
-              Resumen del Pedido
-            </span>
-            <div className="flex items-center justify-between text-gray-300">
-              <span>Subtotal ({cartCount} {cartCount === 1 ? 'ítem' : 'ítems'})</span>
-              <span className="font-mono font-bold">${total.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center justify-between text-gray-400 text-[11px]">
-              <span>Envío (Delivery)</span>
-              <span>{marca?.costo_delivery !== undefined ? (Number(marca.costo_delivery) === 0 ? 'Gratis' : `+$${marca.costo_delivery}`) : 'Gratis'}</span>
-            </div>
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-white font-bold">
-              <span className="text-sm">Total estimado</span>
-              <span className="font-mono text-base font-black text-amber-400">
-                ${total.toLocaleString()}
-              </span>
-            </div>
-            <p className="text-[10px] text-gray-400 italic pt-1">
-              Podrás elegir delivery o retiro en mostrador y forma de pago en el siguiente paso.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Sticky Checkout CTA Móvil */}
-      {items.length > 0 && (
-        <div className="p-4 border-t border-white/10 bg-[#161622] space-y-2 mt-auto">
-          <div className="flex items-center justify-between text-xs px-1">
-            <span className="text-gray-400 uppercase font-bold">Total a pagar:</span>
-            <span className="font-mono text-xl font-black text-amber-400">${total.toLocaleString()}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic('medium');
-              onProceedToCheckout();
-            }}
-            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black font-black text-sm uppercase tracking-wider shadow-xl shadow-amber-500/25 hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
-          >
-            <span>Continuar al Checkout</span>
-            <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          </button>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -548,10 +340,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       key={cat}
                       onClick={() => {
                         triggerHaptic('light');
-                        setCategoria(cat);
+                        setCategoriaDesktop(cat);
                       }}
                       className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                        categoria === cat
+                        categoriaDesktop === cat
                           ? 'bg-amber-500 text-black shadow-md shadow-amber-500/25'
                           : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
                       }`}
@@ -566,7 +358,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex-1 overflow-y-auto p-3.5">
                   <div className="grid [grid-template-columns:repeat(auto-fill,minmax(145px,1fr))] gap-2.5">
                     {/* Platos elaborados */}
-                    {platosFiltrados.map((plato) => (
+                    {platosFiltradosDesktop.map((plato) => (
                       <div
                         key={plato.producto_elaborado_id}
                         onClick={() => {
@@ -640,7 +432,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     ))}
 
                     {/* Bebidas / Reventa */}
-                    {reventaFiltrada.map((rev) => (
+                    {reventaFiltradaDesktop.map((rev) => (
                       <div
                         key={`rev_${rev.producto_reventa_id}`}
                         onClick={() => {
@@ -837,61 +629,71 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          MOBILE (md:hidden) — DRAWER DERECHO IDÉNTICO AL QUE QUEDÓ BIEN
+          MOBILE (md:hidden) — EXACTAMENTE IGUAL A NALÚ
+          + Buscador por nombre y Filtros rápidos de resumen por categoría
           ═══════════════════════════════════════════════════════════════ */}
-      <div className="md:hidden fixed inset-y-0 right-0 max-w-full flex">
-        <div
-          className="w-screen max-w-md bg-[#111117] border-l border-white/10 shadow-2xl flex flex-col h-full overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header Móvil */}
-          <div className="px-5 py-4 border-b border-white/10 bg-[#161622] flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <ShoppingBag className="w-5 h-5" />
+      <div className="md:hidden fixed inset-0 flex flex-col bg-[#111117] overflow-hidden">
+        {/* Header Móvil estilo Nalú (Logo + Tu Pedido + Abierto + Cerrar X) */}
+        <div className="px-4 py-3 bg-[#161622] border-b border-white/10 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <img
+              src={marca?.logo_url || '/Burguerama_logo.png'}
+              alt={marca?.nombre || 'Burguerama'}
+              className="h-8 w-auto object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
+              }}
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black text-white uppercase tracking-wider font-display">
+                  Tu Pedido
+                </h2>
+                {cartCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-black">
+                    {cartCount}
+                  </span>
+                )}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-black text-white uppercase tracking-wider font-display">
-                    TU PEDIDO
-                  </h2>
-                  {cartCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-black">
-                      {cartCount}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                  <Clock className="w-3 h-3 text-amber-400" />
-                  <span>Entrega en Tacuarembó · {marca?.tiempo_espera_delivery || '35-50 min'}</span>
-                </div>
+              <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
+                <Clock className="w-3 h-3 text-amber-400" />
+                <span>Entrega en Tacuarembó · {marca?.tiempo_espera_delivery || '35–50 min'}</span>
               </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Abierto ahora</span>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white flex items-center justify-center transition-all"
               aria-label="Cerrar carrito"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
+        </div>
 
-          {/* Navigation Tabs Móvil: Carrito vs Mis Pedidos */}
-          <div className="flex border-b border-white/10 bg-[#13131c] shrink-0">
+        {/* Pestañas de Navegación Móvil Idénticas a Nalú (SOLO Carrito y Mis Pedidos) */}
+        <div className="px-4 py-2.5 bg-[#13131c] border-b border-white/10 shrink-0">
+          <div className="flex p-1 bg-[#0b0b10] rounded-xl border border-white/10 gap-1.5">
             <button
               type="button"
               onClick={() => {
                 triggerHaptic('light');
                 setActiveTab('carrito');
               }}
-              className={`flex-1 py-3 px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 border-b-2 transition-all ${
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                 activeTab === 'carrito'
-                  ? 'border-amber-400 text-amber-400 bg-amber-500/5'
-                  : 'border-transparent text-gray-400 hover:text-white'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/25'
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
-              <ShoppingBag className="w-4 h-4" />
+              <ShoppingBag className="w-3.5 h-3.5" />
               <span>Carrito {cartCount > 0 ? `(${cartCount})` : ''}</span>
             </button>
 
@@ -901,51 +703,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 triggerHaptic('light');
                 setActiveTab('pedidos');
               }}
-              className={`flex-1 py-3 px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 border-b-2 transition-all relative ${
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all relative ${
                 activeTab === 'pedidos'
-                  ? 'border-amber-400 text-amber-400 bg-amber-500/5'
-                  : 'border-transparent text-gray-400 hover:text-white'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/25'
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
-              <Clock className="w-4 h-4" />
+              <Clock className="w-3.5 h-3.5" />
               <span>Mis Pedidos {activeOrders.length > 0 ? `(${activeOrders.length})` : ''}</span>
               {activeOrders.length > 0 && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping absolute top-2 right-4" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping absolute top-1.5 right-3" />
               )}
             </button>
           </div>
+        </div>
 
-          {/* Mobile: Menú / Pedido switcher (visible dentro del tab Carrito) */}
-          {activeTab === 'carrito' && (
-            <div className="flex border-b border-white/10 bg-[#0f0f17] shrink-0">
-              <button
-                type="button"
-                onClick={() => setMobileTab('menu')}
-                className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
-                  mobileTab === 'menu'
-                    ? 'text-amber-400 bg-amber-500/5 border-b-2 border-amber-400'
-                    : 'text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                🍔 Menú
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileTab('pedido')}
-                className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
-                  mobileTab === 'pedido'
-                    ? 'text-amber-400 bg-amber-500/5 border-b-2 border-amber-400'
-                    : 'text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                🛒 Pedido{cartCount > 0 ? ` (${cartCount})` : ''}
-              </button>
-            </div>
-          )}
-
-          {/* View Body Móvil */}
+        {/* Cuerpo Scrollable Móvil */}
+        <div className="flex-1 overflow-y-auto flex flex-col">
           {activeTab === 'pedidos' ? (
-            <div className="flex-1 overflow-y-auto">
+            /* Vista Mis Pedidos en móvil */
+            <div className="flex-1 p-4">
               <MisPedidosView
                 pedidos={activeOrders}
                 onArmarNuevoPedido={() => {
@@ -954,110 +731,392 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 }}
               />
             </div>
-          ) : mobileTab === 'menu' ? (
-            /* Panel de menú rápido en móvil */
-            <div className="flex-1 overflow-y-auto flex flex-col">
-              {/* Category pills */}
-              <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none border-b border-white/5 shrink-0">
-                {categorias.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategoria(cat)}
-                    className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all ${
-                      categoria === cat
-                        ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/25'
-                        : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
-                    }`}
-                  >
-                    {CATEGORY_EMOJIS[cat] || '🍽️'} {cat === 'todos' ? 'Todos' : cat}
-                  </button>
-                ))}
-              </div>
-              {/* Product list */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                {platosFiltrados.map((plato) => (
-                  <div
-                    key={plato.producto_elaborado_id}
-                    className="flex items-center gap-3 p-2.5 rounded-xl bg-[#171724] border border-white/10 hover:border-amber-500/30 transition-all"
-                  >
-                    <div className="w-14 h-14 rounded-lg bg-[#0f0f15] overflow-hidden shrink-0">
-                      {plato.imagen_url ? (
-                        <img
-                          src={plato.imagen_url}
-                          alt={plato.nombre}
-                          className="w-full h-full object-contain p-0.5"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
-                          }}
-                        />
-                      ) : (
-                        <span className="text-xl flex items-center justify-center h-full">🍔</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-white uppercase truncate font-display">
-                        {plato.nombre}
-                      </p>
-                      <p className="font-mono text-xs font-black text-amber-400">
-                        ${Number(plato.precio_venta).toFixed(0)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        triggerHaptic('light');
-                        if (onQuickAdd) onQuickAdd(plato);
-                        setMobileTab('pedido');
-                      }}
-                      className="shrink-0 w-8 h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center active:scale-95 transition-all shadow"
-                    >
-                      <Plus className="w-4 h-4 stroke-[3]" />
-                    </button>
-                  </div>
-                ))}
-                {reventaFiltrada.map((rev) => (
-                  <div
-                    key={`rev_${rev.producto_reventa_id}`}
-                    className="flex items-center gap-3 p-2.5 rounded-xl bg-[#171724] border border-white/10 hover:border-sky-500/30 transition-all"
-                  >
-                    <div className="w-14 h-14 rounded-lg bg-[#0f0f15] overflow-hidden shrink-0">
-                      {rev.imagen_url ? (
-                        <img
-                          src={rev.imagen_url}
-                          alt={rev.nombre}
-                          className="w-full h-full object-contain p-0.5"
-                        />
-                      ) : (
-                        <span className="text-xl flex items-center justify-center h-full">🥤</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-white uppercase truncate font-display">
-                        {rev.nombre}
-                      </p>
-                      <p className="font-mono text-xs font-black text-amber-400">
-                        ${Number(rev.precio_venta).toFixed(0)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        triggerHaptic('light');
-                        if (onQuickAddReventa) onQuickAddReventa(rev);
-                        setMobileTab('pedido');
-                      }}
-                      className="shrink-0 w-8 h-8 rounded-lg bg-sky-500 hover:bg-sky-400 text-black flex items-center justify-center active:scale-95 transition-all shadow"
-                    >
-                      <Plus className="w-4 h-4 stroke-[3]" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           ) : (
-            MobileCartItemsPanel
+            /* Vista Carrito idéntica a Nalú */
+            <div className="p-4 space-y-4 flex-1">
+              {/* 1. Lista de productos o Empty State idéntico a Nalú */}
+              {items.length === 0 ? (
+                <div className="py-6 px-4 text-center space-y-2 bg-[#161622]/40 rounded-2xl border border-white/5">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto flex items-center justify-center">
+                    <ShoppingBag className="w-6 h-6 stroke-[1.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider font-display">
+                      Tu pedido está vacío
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Elegí tus platos favoritos de abajo ↓
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                      PRODUCTOS AÑADIDOS ({cartCount})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('medium');
+                        items.forEach((it) => onRemoveItem(it.id));
+                      }}
+                      className="text-[10px] font-bold text-gray-400 hover:text-red-400 uppercase tracking-wider"
+                    >
+                      Vaciar
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-2xl bg-[#171724] border border-white/10 flex gap-3 items-center group"
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-12 h-12 rounded-xl bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
+                          {item.imagen_url ? (
+                            <img
+                              src={item.imagen_url}
+                              alt={item.nombre}
+                              className="w-full h-full object-contain p-0.5"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
+                              }}
+                            />
+                          ) : (
+                            <span className="text-xl">🍔</span>
+                          )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-black text-white uppercase truncate font-display">
+                            {item.nombre}
+                          </h4>
+                          <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
+                            ${(item.precio_unitario * item.cantidad).toLocaleString()}
+                          </span>
+                          {item.notas && (
+                            <span className="text-[10px] text-gray-400 italic block truncate">
+                              "{item.notas}"
+                            </span>
+                          )}
+
+                          {/* Qty Controls */}
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <div className="flex items-center gap-1.5 bg-[#20202e] border border-white/10 rounded-lg px-2 py-0.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic('light');
+                                  onUpdateQuantity(item.id, -1);
+                                }}
+                                className="p-0.5 text-gray-400 hover:text-white"
+                                aria-label="Disminuir"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="font-mono text-xs font-bold text-white px-1">
+                                {item.cantidad}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic('light');
+                                  onUpdateQuantity(item.id, 1);
+                                }}
+                                className="p-0.5 text-gray-400 hover:text-white"
+                                aria-label="Aumentar"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                triggerHaptic('medium');
+                                onRemoveItem(item.id);
+                              }}
+                              className="p-1 text-gray-500 hover:text-red-400 transition-colors ml-auto"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Sección "¿Querés agregar algo más?" Idéntica a Nalú + Filtros y Buscador */}
+              <div className="pt-2 space-y-2.5">
+                {/* Header de la sección */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    ¿Querés agregar algo más?
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-bold">Deslizá →</span>
+                </div>
+
+                {/* 🔍 Buscador rápido por nombre exclusivo móvil */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={mobileSearch}
+                    onChange={(e) => setMobileSearch(e.target.value)}
+                    placeholder="Buscar burger, papas, bebida..."
+                    className="w-full bg-[#161622] border border-white/10 rounded-xl pl-8 pr-8 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  />
+                  {mobileSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setMobileSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-white"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* 🏷️ Pequeños filtros de resumen por título para filtrar o desfiltrar rápido */}
+                <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+                  {categorias.map((cat) => {
+                    const isSelected = mobileFilterCat === cat;
+                    const count = categoryCounts[cat] || 0;
+                    const shortName = CATEGORY_SHORT_NAMES[cat] || cat;
+                    const emoji = CATEGORY_EMOJIS[cat] || '🍽️';
+
+                    return (
+                      <button
+                        key={`m_filter_${cat}`}
+                        type="button"
+                        onClick={() => handleToggleMobileCat(cat)}
+                        className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 border ${
+                          isSelected
+                            ? 'bg-amber-500 text-black border-amber-400 shadow-sm shadow-amber-500/20'
+                            : 'bg-[#161622] text-gray-300 border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <span className="text-xs">{emoji}</span>
+                        <span>{shortName}</span>
+                        <span
+                          className={`text-[9px] px-1 py-0.2 rounded-full font-mono font-black ${
+                            isSelected ? 'bg-black/20 text-black' : 'bg-white/10 text-gray-400'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Carrusel Horizontal de Productos (Idéntico formato visual a Nalú) */}
+                {totalMobileMatches === 0 ? (
+                  <div className="py-6 text-center space-y-2 bg-[#161622]/40 rounded-xl border border-white/5">
+                    <p className="text-xs text-gray-400 font-medium">
+                      No encontramos productos para "{mobileSearch}"
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileSearch('');
+                        setMobileFilterCat('todos');
+                      }}
+                      className="px-3 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold"
+                    >
+                      Ver todos
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none snap-x -mx-1 px-1">
+                    {/* Burgers elaboradas */}
+                    {mobileFilteredItems.platos.map((plato) => (
+                      <div
+                        key={`upsell_${plato.producto_elaborado_id}`}
+                        className="w-36 shrink-0 bg-[#161622] rounded-2xl border border-white/10 p-2.5 flex flex-col justify-between snap-start hover:border-amber-500/40 transition-all shadow-md group"
+                      >
+                        <div
+                          className="cursor-pointer"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            if (plato.es_personalizable && onOpenDishDetail) {
+                              onOpenDishDetail(plato);
+                            } else if (onQuickAdd) {
+                              onQuickAdd(plato);
+                            }
+                          }}
+                        >
+                          <div className="w-full h-20 rounded-xl bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5 relative">
+                            {plato.imagen_url ? (
+                              <img
+                                src={plato.imagen_url}
+                                alt={plato.nombre}
+                                className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
+                                }}
+                              />
+                            ) : (
+                              <span className="text-2xl">🍔</span>
+                            )}
+                            <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-black/80 text-amber-400 border border-amber-500/30">
+                              {plato.categoria}
+                            </span>
+                            {plato.es_personalizable && (
+                              <span className="absolute top-1 right-1 px-1 py-0.5 rounded text-[7px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                ✨ Armar
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display">
+                            {plato.nombre}
+                          </h4>
+                          <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
+                            ${Number(plato.precio_venta).toFixed(0)}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            if (plato.es_personalizable && onOpenDishDetail) {
+                              onOpenDishDetail(plato);
+                            } else if (onQuickAdd) {
+                              onQuickAdd(plato);
+                            }
+                          }}
+                          className="mt-2 w-full py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
+                        >
+                          {plato.es_personalizable ? (
+                            <>
+                              <Sparkles className="w-3 h-3 stroke-[2.5]" />
+                              <span>Armar</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-3 h-3 stroke-[3]" />
+                              <span>Agregar</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Bebidas */}
+                    {mobileFilteredItems.reventa.map((rev) => (
+                      <div
+                        key={`upsell_rev_${rev.producto_reventa_id}`}
+                        className="w-32 shrink-0 bg-[#161622] rounded-2xl border border-white/10 p-2.5 flex flex-col justify-between snap-start hover:border-sky-500/40 transition-all shadow-md group"
+                      >
+                        <div
+                          className="cursor-pointer"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            if (onQuickAddReventa) onQuickAddReventa(rev);
+                          }}
+                        >
+                          <div className="w-full h-20 rounded-xl bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5 relative">
+                            {rev.imagen_url ? (
+                              <img
+                                src={rev.imagen_url}
+                                alt={rev.nombre}
+                                className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                              />
+                            ) : (
+                              <span className="text-2xl">🥤</span>
+                            )}
+                            <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-black/80 text-sky-400 border border-sky-500/30">
+                              Bebidas
+                            </span>
+                          </div>
+                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display">
+                            {rev.nombre}
+                          </h4>
+                          <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
+                            ${Number(rev.precio_venta).toFixed(0)}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            if (onQuickAddReventa) onQuickAddReventa(rev);
+                          }}
+                          className="mt-2 w-full py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 active:scale-95 transition-all shadow"
+                        >
+                          <Plus className="w-3 h-3 stroke-[3]" />
+                          <span>Agregar</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Resumen del Pedido Móvil */}
+              {items.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-[#171724] border border-white/10 space-y-2 text-xs">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                    Resumen del Pedido
+                  </span>
+                  <div className="flex items-center justify-between text-gray-300">
+                    <span>Subtotal ({cartCount} {cartCount === 1 ? 'ítem' : 'ítems'})</span>
+                    <span className="font-mono font-bold">${total.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-gray-400 text-[11px]">
+                    <span>Envío (Delivery)</span>
+                    <span>{marca?.costo_delivery !== undefined ? (Number(marca.costo_delivery) === 0 ? 'Gratis' : `+$${marca.costo_delivery}`) : 'Gratis'}</span>
+                  </div>
+                  <div className="pt-2 border-t border-white/10 flex items-center justify-between text-white font-bold">
+                    <span className="text-sm">Total estimado</span>
+                    <span className="font-mono text-base font-black text-amber-400">
+                      ${total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Mensaje de notas/instrucciones especiales idéntico a Nalú (visible con o sin items) */}
+              <p className="text-center text-[11px] text-gray-400 italic py-2 px-4 leading-relaxed">
+                Podrás agregar notas o instrucciones especiales en el siguiente paso.
+              </p>
+
+              {/* Espaciador para no tapar contenido con el botón sticky */}
+              <div style={{ height: items.length > 0 ? 100 : 24 }} />
+            </div>
           )}
         </div>
+
+        {/* Footer Fijo Checkout Móvil (solo si hay items y está en Carrito) */}
+        {activeTab === 'carrito' && items.length > 0 && (
+          <div className="p-3.5 border-t border-white/10 bg-[#161622] space-y-2 shrink-0">
+            <div className="flex items-center justify-between text-xs px-1">
+              <span className="text-gray-400 uppercase font-bold">Total a pagar:</span>
+              <span className="font-mono text-xl font-black text-amber-400">${total.toLocaleString()}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('medium');
+                onProceedToCheckout();
+              }}
+              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black font-black text-sm uppercase tracking-wider shadow-xl shadow-amber-500/25 hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
+            >
+              <span>Continuar al Checkout</span>
+              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
