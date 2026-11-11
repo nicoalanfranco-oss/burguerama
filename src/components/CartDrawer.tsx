@@ -208,6 +208,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   };
 
+  // Helper para vincular un ítem del carrito con su producto elaborado completo (para ver ingredientes y descripción)
+  const findDishForItem = (item: CartItem): ProductoElaborado | undefined => {
+    if (item.tipo !== 'elaborado') return undefined;
+    return platosActivos.find(
+      (p) => p.producto_elaborado_id === item.producto_id ||
+             p.nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim()
+    );
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -363,13 +372,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         key={plato.producto_elaborado_id}
                         onClick={() => {
                           triggerHaptic('light');
-                          if (plato.es_personalizable && onOpenDishDetail) {
+                          if (onOpenDishDetail) {
                             onOpenDishDetail(plato);
-                          } else if (onQuickAdd) {
-                            onQuickAdd(plato);
                           }
                         }}
                         className="bg-[#161622] rounded-xl border border-white/10 p-2 flex flex-col justify-between hover:border-amber-500/40 hover:-translate-y-0.5 transition-all cursor-pointer group shadow-sm"
+                        title="Ver ingredientes y descripción completa"
                       >
                         <div>
                           <div className="relative w-full h-24 rounded-lg bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5">
@@ -395,9 +403,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               </span>
                             )}
                           </div>
-                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display leading-tight">
+                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display leading-tight group-hover:text-amber-400 transition-colors">
                             {plato.nombre}
                           </h4>
+                          {plato.descripcion && (
+                            <p className="text-[9.5px] text-gray-400 line-clamp-1 mt-0.5 leading-snug">
+                              {plato.descripcion}
+                            </p>
+                          )}
                           <p className="font-mono text-xs font-black text-amber-400 mt-0.5">
                             ${Number(plato.precio_venta).toFixed(0)}
                           </p>
@@ -520,83 +533,115 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </div>
                     </div>
                   ) : (
-                    items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-2.5 rounded-xl bg-[#171724] border border-white/10 flex gap-2.5 items-center group"
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
-                          {item.imagen_url ? (
-                            <img
-                              src={item.imagen_url}
-                              alt={item.nombre}
-                              className="w-full h-full object-contain p-0.5"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
+                    items.map((item) => {
+                      const relatedDish = findDishForItem(item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-2.5 rounded-xl bg-[#171724] border border-white/10 flex gap-2.5 items-center group transition-colors hover:border-amber-500/30"
+                        >
+                          {/* Thumbnail clickeable para abrir ingredientes */}
+                          <div
+                            onClick={() => {
+                              if (relatedDish && onOpenDishDetail) {
+                                triggerHaptic('light');
+                                onOpenDishDetail(relatedDish);
+                              }
+                            }}
+                            className={`w-10 h-10 rounded-lg bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center ${relatedDish ? 'cursor-pointer hover:border-amber-500/50 hover:scale-105 transition-all' : ''}`}
+                            title={relatedDish ? 'Ver ingredientes y descripción completa' : undefined}
+                          >
+                            {item.imagen_url ? (
+                              <img
+                                src={item.imagen_url}
+                                alt={item.nombre}
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
+                                }}
+                              />
+                            ) : (
+                              <span className="text-base">🍔</span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            {/* Título y notas clickeables */}
+                            <div
+                              onClick={() => {
+                                if (relatedDish && onOpenDishDetail) {
+                                  triggerHaptic('light');
+                                  onOpenDishDetail(relatedDish);
+                                }
                               }}
-                            />
-                          ) : (
-                            <span className="text-base">🍔</span>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h5 className="text-[11px] font-black text-white uppercase truncate font-display">
-                            {item.nombre}
-                          </h5>
-                          <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
-                            ${(item.precio_unitario * item.cantidad).toLocaleString()}
-                          </span>
-                          {item.notas && (
-                            <span className="text-[9px] text-gray-400 italic block truncate">
-                              "{item.notas}"
-                            </span>
-                          )}
-
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <div className="flex items-center gap-1 bg-[#20202e] border border-white/10 rounded-md px-1.5 py-0.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  triggerHaptic('light');
-                                  onUpdateQuantity(item.id, -1);
-                                }}
-                                className="p-0.5 text-gray-400 hover:text-white"
-                                aria-label="Disminuir"
-                              >
-                                <Minus className="w-2.5 h-2.5" />
-                              </button>
-                              <span className="font-mono text-[11px] font-bold text-white px-0.5">
-                                {item.cantidad}
+                              className={relatedDish ? 'cursor-pointer' : ''}
+                              title={relatedDish ? 'Ver ingredientes y descripción completa' : undefined}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <h5 className="text-[11px] font-black text-white uppercase truncate font-display group-hover:text-amber-400 transition-colors">
+                                  {item.nombre}
+                                </h5>
+                                {relatedDish && (
+                                  <span className="text-[9px] text-amber-400/80 font-bold shrink-0">
+                                    Receta ↗
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
+                                ${(item.precio_unitario * item.cantidad).toLocaleString()}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  triggerHaptic('light');
-                                  onUpdateQuantity(item.id, 1);
-                                }}
-                                className="p-0.5 text-gray-400 hover:text-white"
-                                aria-label="Aumentar"
-                              >
-                                <Plus className="w-2.5 h-2.5" />
-                              </button>
+                              {item.notas && (
+                                <span className="text-[9px] text-gray-400 italic block truncate">
+                                  "{item.notas}"
+                                </span>
+                              )}
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                triggerHaptic('medium');
-                                onRemoveItem(item.id);
-                              }}
-                              className="p-1 text-gray-500 hover:text-red-400 transition-colors ml-auto"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                            <div className="flex items-center gap-1.5 mt-1" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1 bg-[#20202e] border border-white/10 rounded-md px-1.5 py-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    triggerHaptic('light');
+                                    onUpdateQuantity(item.id, -1);
+                                  }}
+                                  className="p-0.5 text-gray-400 hover:text-white"
+                                  aria-label="Disminuir"
+                                >
+                                  <Minus className="w-2.5 h-2.5" />
+                                </button>
+                                <span className="font-mono text-[11px] font-bold text-white px-0.5">
+                                  {item.cantidad}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    triggerHaptic('light');
+                                    onUpdateQuantity(item.id, 1);
+                                  }}
+                                  className="p-0.5 text-gray-400 hover:text-white"
+                                  aria-label="Aumentar"
+                                >
+                                  <Plus className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic('medium');
+                                  onRemoveItem(item.id);
+                                }}
+                                className="p-1 text-gray-500 hover:text-red-400 transition-colors ml-auto"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
@@ -768,86 +813,116 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 rounded-2xl bg-[#171724] border border-white/10 flex gap-3 items-center group"
-                      >
-                        {/* Thumbnail */}
-                        <div className="w-12 h-12 rounded-xl bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
-                          {item.imagen_url ? (
-                            <img
-                              src={item.imagen_url}
-                              alt={item.nombre}
-                              className="w-full h-full object-contain p-0.5"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
+                    {items.map((item) => {
+                      const relatedDish = findDishForItem(item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-2xl bg-[#171724] border border-white/10 flex gap-3 items-center group transition-colors hover:border-amber-500/30"
+                        >
+                          {/* Thumbnail clickeable para abrir ingredientes */}
+                          <div
+                            onClick={() => {
+                              if (relatedDish && onOpenDishDetail) {
+                                triggerHaptic('light');
+                                onOpenDishDetail(relatedDish);
+                              }
+                            }}
+                            className={`w-12 h-12 rounded-xl bg-[#0e0e14] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center ${relatedDish ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+                            title={relatedDish ? 'Ver ingredientes y descripción completa' : undefined}
+                          >
+                            {item.imagen_url ? (
+                              <img
+                                src={item.imagen_url}
+                                alt={item.nombre}
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/Hamburguesa_transparente.png';
+                                }}
+                              />
+                            ) : (
+                              <span className="text-xl">🍔</span>
+                            )}
+                          </div>
+
+                          {/* Details clickeables */}
+                          <div className="flex-1 min-w-0">
+                            <div
+                              onClick={() => {
+                                if (relatedDish && onOpenDishDetail) {
+                                  triggerHaptic('light');
+                                  onOpenDishDetail(relatedDish);
+                                }
                               }}
-                            />
-                          ) : (
-                            <span className="text-xl">🍔</span>
-                          )}
-                        </div>
-
-                        {/* Details */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-black text-white uppercase truncate font-display">
-                            {item.nombre}
-                          </h4>
-                          <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
-                            ${(item.precio_unitario * item.cantidad).toLocaleString()}
-                          </span>
-                          {item.notas && (
-                            <span className="text-[10px] text-gray-400 italic block truncate">
-                              "{item.notas}"
-                            </span>
-                          )}
-
-                          {/* Qty Controls */}
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <div className="flex items-center gap-1.5 bg-[#20202e] border border-white/10 rounded-lg px-2 py-0.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  triggerHaptic('light');
-                                  onUpdateQuantity(item.id, -1);
-                                }}
-                                className="p-0.5 text-gray-400 hover:text-white"
-                                aria-label="Disminuir"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <span className="font-mono text-xs font-bold text-white px-1">
-                                {item.cantidad}
+                              className={relatedDish ? 'cursor-pointer' : ''}
+                              title={relatedDish ? 'Ver ingredientes y descripción completa' : undefined}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <h4 className="text-xs font-black text-white uppercase truncate font-display group-hover:text-amber-400 transition-colors">
+                                  {item.nombre}
+                                </h4>
+                                {relatedDish && (
+                                  <span className="text-[10px] text-amber-400/90 font-bold shrink-0">
+                                    Ver receta ↗
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
+                                ${(item.precio_unitario * item.cantidad).toLocaleString()}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  triggerHaptic('light');
-                                  onUpdateQuantity(item.id, 1);
-                                }}
-                                className="p-0.5 text-gray-400 hover:text-white"
-                                aria-label="Aumentar"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
+                              {item.notas && (
+                                <span className="text-[10px] text-gray-400 italic block truncate">
+                                  "{item.notas}"
+                                </span>
+                              )}
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                triggerHaptic('medium');
-                                onRemoveItem(item.id);
-                              }}
-                              className="p-1 text-gray-500 hover:text-red-400 transition-colors ml-auto"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {/* Qty Controls con aislamiento de click */}
+                            <div className="flex items-center gap-2 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1.5 bg-[#20202e] border border-white/10 rounded-lg px-2 py-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    triggerHaptic('light');
+                                    onUpdateQuantity(item.id, -1);
+                                  }}
+                                  className="p-0.5 text-gray-400 hover:text-white"
+                                  aria-label="Disminuir"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="font-mono text-xs font-bold text-white px-1">
+                                  {item.cantidad}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    triggerHaptic('light');
+                                    onUpdateQuantity(item.id, 1);
+                                  }}
+                                  className="p-0.5 text-gray-400 hover:text-white"
+                                  aria-label="Aumentar"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic('medium');
+                                  onRemoveItem(item.id);
+                                }}
+                                className="p-1 text-gray-500 hover:text-red-400 transition-colors ml-auto"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -947,12 +1022,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           className="cursor-pointer"
                           onClick={() => {
                             triggerHaptic('light');
-                            if (plato.es_personalizable && onOpenDishDetail) {
+                            if (onOpenDishDetail) {
                               onOpenDishDetail(plato);
-                            } else if (onQuickAdd) {
-                              onQuickAdd(plato);
                             }
                           }}
+                          title="Ver ingredientes y descripción completa"
                         >
                           <div className="w-full h-20 rounded-xl bg-[#0f0f15] overflow-hidden flex items-center justify-center mb-1.5 relative">
                             {plato.imagen_url ? (
@@ -976,7 +1050,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               </span>
                             )}
                           </div>
-                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display">
+                          <h4 className="text-[11px] font-black text-white uppercase truncate font-display group-hover:text-amber-400 transition-colors">
                             {plato.nombre}
                           </h4>
                           <span className="font-mono text-xs font-black text-amber-400 block mt-0.5">
@@ -986,7 +1060,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             triggerHaptic('light');
                             if (plato.es_personalizable && onOpenDishDetail) {
                               onOpenDishDetail(plato);
