@@ -58,3 +58,47 @@ canvas {
   touch-action: none;
 }
 
+/* Exclusive Black Parts Shine Sweep */
+@keyframes shineSweep {
+  0% {
+    transform: translateX(-150%) skewX(-25deg);
+  }
+  30%, 100% {
+    transform: translateX(250%) skewX(-25deg);
+  }
+}
+
+.animate-shine-sweep {
+  animation: shineSweep 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Food Delivery Rider Animated Trajectory in Tacuarembó */
+@keyframes deliveryRiderMove {
+  0% {
+    transform: translate(120px, 70px);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  40% {
+    transform: translate(320px, 175px);
+  }
+  70% {
+    transform: translate(430px, 200px);
+  }
+  88% {
+    transform: translate(525px, 200px);
+    opacity: 1;
+  }
+  95%, 100% {
+    transform: translate(525px, 200px);
+    opacity: 0;
+  }
+}
+
+.animate-delivery-rider {
+  animation: deliveryRiderMove 6.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+

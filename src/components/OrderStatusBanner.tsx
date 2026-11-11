@@ -141,7 +141,7 @@ export const OrderStatusBanner: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-white">${ord.total}</span>
                     <a
-                      href={`https://wa.me/59899275502?text=Hola%20Burguerama!%20Consulto%20por%20mi%20pedido%20%23${ord.numero_orden}`}
+                      href={`https://wa.me/59891797279?text=Hola%20Burguerama!%20Consulto%20por%20mi%20pedido%20%23${ord.numero_orden}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/40"

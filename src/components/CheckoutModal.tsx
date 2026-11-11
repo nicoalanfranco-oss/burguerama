@@ -221,7 +221,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           (notas ? `📝 *Notas:* ${notas}\n` : '') +
           `\n✅ _Pedido registrado en cocina con éxito._`;
 
-        const waUrl = `https://wa.me/598${((marca as any)?.telefono || '099275502').replace(/\D/g, '')}?text=${encodeURIComponent(textoWa)}`;
+        const burgueramaWa = ((marca as any)?.telefono || '091797279').replace(/\D/g, '');
+        const waUrl = `https://wa.me/598${burgueramaWa.startsWith('0') ? burgueramaWa.slice(1) : burgueramaWa}?text=${encodeURIComponent(textoWa)}`;
 
         // Guardar en active orders para tracking en la web
         const nuevoRegistro = {

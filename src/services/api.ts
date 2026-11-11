@@ -6,7 +6,7 @@ export const TENANT_INFO: TenantInfo = {
   nombre: realData.tenant?.nombre || 'Burguerama',
   rut: realData.tenant?.rut || '219988770014',
   direccion: realData.tenant?.direccion || 'Sarandí 312 Bis',
-  telefono: realData.tenant?.telefono || '099275502',
+  telefono: '091797279',
   google_maps_url: (realData.tenant as any)?.google_maps_url || 'https://www.google.com/maps/search/?api=1&query=-31.7158226,-55.978271',
   email: realData.tenant?.email || 'contacto@burguerama.uy',
 };
@@ -16,7 +16,7 @@ export const MARCA_INFO: MarcaInfo = {
   nombre: realData.marca?.nombre || 'Burguerama',
   color_primario: realData.marca?.color_primario || '#f59e0b',
   dias_atencion: realData.marca?.dias_atencion || 'Martes a Domingo',
-  horario_atencion: realData.marca?.horario_atencion || '19:30 a 00:30 hs',
+  horario_atencion: 'Desde las 20:00 hs',
   permite_salon: Boolean(realData.marca?.permite_salon ?? true),
   permite_delivery: realData.marca?.permite_delivery !== false,
   permite_takeaway: realData.marca?.permite_takeaway !== false,

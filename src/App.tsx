@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { MenuSection } from './components/MenuSection';
+import { CulturaBurgueramaSection } from './components/CulturaBurgueramaSection';
 import { DishDetailModal } from './components/DishDetailModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
@@ -189,6 +190,9 @@ export const App: React.FC = () => {
           selectedCategory={selectedCategory}
           onSelectCategory={(cat) => setSelectedCategory(cat)}
         />
+
+        {/* Cultura Smash, Emblema de Marca con Brillo y Rastreo Delivery */}
+        <CulturaBurgueramaSection />
       </main>
 
       {/* Footer */}

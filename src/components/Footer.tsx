@@ -33,14 +33,11 @@ export const Footer: React.FC<FooterProps> = ({ tenant, marca }) => {
           {/* Col 1: Brand Info */}
           <div className="space-y-3 md:col-span-1">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-white/5 border border-amber-500/30 p-1 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full overflow-hidden border border-amber-500/40 p-0 flex items-center justify-center bg-black">
                 <img
-                  src={marca.logo_url || '/Burguerama_logo.png'}
+                  src="/Burguerama_logo.png"
                   alt="Burguerama"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/Burguerama logo.jpg';
-                  }}
+                  className="w-full h-full object-cover"
                 />
               </div>
               <span className="text-xl font-black text-white uppercase tracking-wider font-display">
@@ -79,8 +76,8 @@ export const Footer: React.FC<FooterProps> = ({ tenant, marca }) => {
             <div className="flex items-start gap-2 text-gray-300">
               <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-white">{marca.dias_atencion || 'Martes a Domingo'}</p>
-                <p>{marca.horario_atencion || '19:30 a 00:30 hs'}</p>
+                <p className="font-semibold text-white">Martes a Domingo</p>
+                <p>Desde las 20:00 hs</p>
                 <p className="text-[11px] text-gray-400 mt-1">Lunes cerrado por descanso.</p>
               </div>
             </div>
@@ -93,17 +90,17 @@ export const Footer: React.FC<FooterProps> = ({ tenant, marca }) => {
             </span>
             <div className="space-y-2">
               <a
-                href={`https://wa.me/598${(tenant.telefono || '099275502').replace(/\D/g, '')}`}
+                href="https://wa.me/59891797279?text=Hola%20Burguerama!%20Quiero%20hacer%20un%20pedido"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp: {tenant.telefono || '099 275 502'}</span>
+                <span>WhatsApp: +598 91 797 279</span>
               </a>
 
               <a
-                href="https://www.instagram.com/burgueramatbo/?hl=es"
+                href="https://www.instagram.com/burgueramatbo/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-pink-400 hover:text-pink-300 font-bold"

@@ -17,7 +17,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onNavigateHome,
   onNavigateMenu,
   onOpenCart,
-  whatsappUrl = 'https://wa.me/59891823908?text=Hola%20Burguerama!%20Quiero%20hacer%20un%20pedido',
+  whatsappUrl = 'https://wa.me/59891797279?text=Hola%20Burguerama!%20Quiero%20hacer%20un%20pedido',
 }) => {
   return (
     <nav

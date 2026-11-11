@@ -29,7 +29,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMenu, onFilte
           </span>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10 backdrop-blur-md">
             <Clock className="w-3.5 h-3.5 text-amber-400" />
-            Mar a Dom · 19:30 a 00:30 hs
+            Mar a Dom · Desde las 20:00 hs
           </span>
         </div>
 
