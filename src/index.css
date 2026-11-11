@@ -75,30 +75,31 @@ canvas {
 /* Food Delivery Rider Animated Trajectory in Tacuarembó */
 @keyframes deliveryRiderMove {
   0% {
-    transform: translate(120px, 70px);
+    transform: translate(221px, 207px);
     opacity: 0;
   }
-  8% {
+  4% {
+    transform: translate(221px, 207px);
     opacity: 1;
   }
-  40% {
-    transform: translate(320px, 175px);
+  32% {
+    transform: translate(344px, 323px);
   }
-  70% {
-    transform: translate(430px, 200px);
+  62% {
+    transform: translate(463px, 195px);
   }
-  88% {
-    transform: translate(525px, 200px);
+  92% {
+    transform: translate(637px, 356px);
     opacity: 1;
   }
-  95%, 100% {
-    transform: translate(525px, 200px);
+  96%, 100% {
+    transform: translate(637px, 356px);
     opacity: 0;
   }
 }
 
 .animate-delivery-rider {
-  animation: deliveryRiderMove 6.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: deliveryRiderMove 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 

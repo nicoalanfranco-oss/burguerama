@@ -126,27 +126,22 @@ export const CulturaBurgueramaSection: React.FC = () => {
             ============================================================== */}
         <div className="rounded-3xl border border-white/10 bg-[#14141c]/90 p-5 sm:p-8 shadow-2xl relative overflow-hidden space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">
-                  Rastreo de Delivery en Tiempo Real
-                </span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white font-display mt-0.5">
-                EN CAMINO A SARANDÍ 312 BIS
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-emerald-400 font-display tracking-wide uppercase">
+                CÓMO LLEGAR
               </h3>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold">
-                🛵 Envío $50 · Tacuarembó
-              </span>
               <a
                 href="https://www.google.com/maps/search/?api=1&query=-31.7158226,-55.978271"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/10"
               >
                 <MapPin className="w-3.5 h-3.5 text-amber-400" />
                 <span>Ver en Maps</span>
@@ -155,10 +150,9 @@ export const CulturaBurgueramaSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Interactive Map Visual with Animated Moto on Street Trajectory */}
-          <div className="relative w-full h-64 sm:h-80 rounded-2xl overflow-hidden bg-[#0a0d14] border border-white/10 select-none">
-            {/* Dark Styled Map Grid with Tacuarembó Center Streets */}
-            <svg className="w-full h-full" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice">
+          {/* Interactive Map Visual with Real Tacuarembó Map and Animated Moto */}
+          <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden bg-white border border-white/10 select-none shadow-inner">
+            <svg className="w-full h-full" viewBox="0 0 942 502" preserveAspectRatio="xMidYMid slice">
               <defs>
                 {/* Glow Filter for Neon Green Route */}
                 <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
@@ -170,111 +164,90 @@ export const CulturaBurgueramaSection: React.FC = () => {
                 </filter>
               </defs>
 
-              {/* Map background blocks / city areas */}
-              <rect x="0" y="0" width="800" height="400" fill="#0b0f19" />
-              
-              {/* City blocks with soft tint */}
-              <rect x="40" y="40" width="160" height="120" rx="6" fill="#131926" opacity="0.6" />
-              <rect x="230" y="40" width="180" height="120" rx="6" fill="#131926" opacity="0.6" />
-              <rect x="440" y="40" width="160" height="120" rx="6" fill="#131926" opacity="0.6" />
-              <rect x="630" y="40" width="140" height="120" rx="6" fill="#131926" opacity="0.6" />
+              {/* Real OpenStreetMap Tacuarembó in white / light mode */}
+              <image
+                href="/mapa_tacuarembo_real.webp"
+                x="0"
+                y="0"
+                width="942"
+                height="502"
+                preserveAspectRatio="xMidYMid slice"
+              />
 
-              <rect x="40" y="190" width="160" height="160" rx="6" fill="#131926" opacity="0.6" />
-              <rect x="230" y="190" width="180" height="160" rx="6" fill="#131926" opacity="0.6" />
-              <rect x="440" y="190" width="160" height="160" rx="6" fill="#131926" opacity="0.6" />
-              <rect x="630" y="190" width="140" height="160" rx="6" fill="#131926" opacity="0.6" />
-
-              {/* Secondary Street Grid Lines */}
-              <line x1="0" y1="175" x2="800" y2="175" stroke="#1d2636" strokeWidth="12" />
-              <line x1="215" y1="0" x2="215" y2="400" stroke="#1d2636" strokeWidth="12" />
-              <line x1="425" y1="0" x2="425" y2="400" stroke="#1d2636" strokeWidth="12" />
-              <line x1="615" y1="0" x2="615" y2="400" stroke="#1d2636" strokeWidth="12" />
-
-              {/* Diagonal Main Avenues (Avenida Manuel Oribe & Washington Beltrán) */}
-              <line x1="0" y1="80" x2="800" y2="280" stroke="#253246" strokeWidth="16" />
-              <line x1="120" y1="0" x2="700" y2="400" stroke="#202a3a" strokeWidth="10" />
-
-              {/* Street Names (Tacuarembó downtown) */}
-              <text x="140" y="105" fill="#64748b" fontSize="10" fontWeight="700" transform="rotate(14 140 105)" letterSpacing="1">
-                AV. GRAL. MANUEL ORIBE
-              </text>
-              <text x="240" y="235" fill="#64748b" fontSize="9" fontWeight="600" letterSpacing="1">
-                WASHINGTON BELTRÁN
-              </text>
-              <text x="445" y="210" fill="#f59e0b" fontSize="10" fontWeight="800" letterSpacing="1">
-                SARANDÍ (312 BIS)
-              </text>
-              <text x="445" y="320" fill="#64748b" fontSize="9" fontWeight="600" letterSpacing="1">
-                18 DE JULIO
-              </text>
-              <text x="235" y="130" fill="#64748b" fontSize="9" fontWeight="600" letterSpacing="1">
-                25 DE AGOSTO
-              </text>
-
-              {/* Animated Neon Green Delivery Route Path */}
+              {/* Animated Neon Green Delivery Route Path following real street directions */}
               <path
                 id="deliveryRoute"
-                d="M 120 70 L 320 175 L 430 200 L 530 200"
+                d="M 221 207 L 344 323 L 463 195 L 637 356"
                 fill="none"
                 stroke="#10b981"
-                strokeWidth="5"
+                strokeWidth="6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 filter="url(#routeGlow)"
               />
+              <path
+                d="M 221 207 L 344 323 L 463 195 L 637 356"
+                fill="none"
+                stroke="#34d399"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
 
               {/* Destination Point: Burguerama Sarandí 312 Bis */}
-              <g transform="translate(530, 200)">
-                {/* Pulsing Beacon Rings */}
-                <circle r="18" fill="none" stroke="#f59e0b" strokeWidth="2" opacity="0.4" className="animate-ping" />
-                <circle r="12" fill="#f59e0b" opacity="0.2" />
-                <circle r="7" fill="#f59e0b" />
+              <g transform="translate(637, 356)">
+                {/* Pulsing Beacon Rings on Ground */}
+                <circle r="18" fill="none" stroke="#f59e0b" strokeWidth="2.5" opacity="0.4" className="animate-ping" />
+                <circle r="11" fill="#f59e0b" opacity="0.3" />
+                <circle r="6" fill="#f59e0b" />
                 
-                {/* Store Pin Card */}
-                <g transform="translate(-60, -48)">
-                  <rect width="120" height="32" rx="10" fill="#0d0d14" stroke="#f59e0b" strokeWidth="1.5" />
-                  <text x="60" y="15" textAnchor="middle" fill="#f59e0b" fontSize="9" fontWeight="900" letterSpacing="0.5">
-                    BURGUERAMA
-                  </text>
-                  <text x="60" y="25" textAnchor="middle" fill="#cbd5e1" fontSize="8" fontWeight="600">
-                    Sarandí 312 Bis
-                  </text>
+                {/* Store Pin: Burguerama Logo on top + Address Card below */}
+                <g transform="translate(0, -56)">
+                  {/* Circular Burguerama Logo directly above the cartel */}
+                  <g transform="translate(0, -22)">
+                    <circle r="22" fill="#0d0d14" stroke="#f59e0b" strokeWidth="2.5" />
+                    <clipPath id="logoPinClip">
+                      <circle r="20" cx="0" cy="0" />
+                    </clipPath>
+                    <image
+                      href="/Burguerama_logo.png"
+                      x="-20"
+                      y="-20"
+                      width="40"
+                      height="40"
+                      clipPath="url(#logoPinClip)"
+                      preserveAspectRatio="xMidYMid slice"
+                    />
+                  </g>
+
+                  {/* Cartel with direction */}
+                  <g transform="translate(-65, 8)">
+                    <rect width="130" height="34" rx="10" fill="#0d0d14" stroke="#f59e0b" strokeWidth="2" />
+                    <text x="65" y="15" textAnchor="middle" fill="#f59e0b" fontSize="9.5" fontWeight="900" letterSpacing="0.8">
+                      BURGUERAMA
+                    </text>
+                    <text x="65" y="27" textAnchor="middle" fill="#f1f5f9" fontSize="8.5" fontWeight="700">
+                      Sarandí 312 Bis
+                    </text>
+                    {/* Pointer down to street */}
+                    <polygon points="60,34 70,34 65,42" fill="#0d0d14" />
+                    <polyline points="60,34 65,42 70,34" fill="none" stroke="#f59e0b" strokeWidth="1.5" />
+                  </g>
                 </g>
               </g>
 
-              {/* Animated Delivery Rider (Jonatan #572) Moving along the Green Route */}
-              <g className="animate-delivery-rider">
-                {/* Magenta Badge matching Food System screenshot */}
-                <rect x="-24" y="-28" width="48" height="24" rx="8" fill="#ec4899" stroke="#ffffff" strokeWidth="1.5" />
-                {/* Order Number #572 */}
-                <text x="0" y="-13" textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="900">
-                  📦 #572
-                </text>
-                {/* Motorcycle Circle Icon */}
-                <circle cx="0" cy="8" r="10" fill="#831843" stroke="#f472b6" strokeWidth="1.5" />
-                <text x="0" y="12" textAnchor="middle" fill="#ffffff" fontSize="10">
+              {/* Animated Delivery Rider - Just the Moto, no order number, no driver name */}
+              <g className="animate-delivery-rider pointer-events-none">
+                {/* Pulsing Emerald Radar Ring */}
+                <circle cx="0" cy="0" r="18" fill="none" stroke="#10b981" strokeWidth="2" opacity="0.6" className="animate-ping" />
+                {/* Circular Badge with Emerald border */}
+                <circle cx="0" cy="0" r="14" fill="#0f172a" stroke="#10b981" strokeWidth="2.5" />
+                {/* Moto Icon */}
+                <text x="0" y="4.5" textAnchor="middle" fontSize="13">
                   🛵
-                </text>
-                {/* Driver Name Tag underneath */}
-                <rect x="-30" y="21" width="60" height="14" rx="4" fill="#090d16" stroke="#ec4899" strokeWidth="1" />
-                <text x="0" y="31" textAnchor="middle" fill="#fbcfe8" fontSize="7.5" fontWeight="800">
-                  JONATAN
                 </text>
               </g>
             </svg>
-
-            {/* Bottom Floating Delivery Stats Bar */}
-            <div className="absolute bottom-3 left-3 right-3 sm:left-4 sm:right-4 flex flex-wrap items-center justify-between gap-2 p-2.5 sm:p-3 rounded-xl bg-[#090d16]/90 backdrop-blur-md border border-white/10 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-gray-300 font-medium">Repartidor asignado y en ruta</span>
-              </div>
-              <div className="flex items-center gap-4 text-gray-400 font-semibold">
-                <span>⏱️ 35–50 min</span>
-                <span>🛵 Envío $50</span>
-                <span className="text-amber-400">🔥 Directo de plancha</span>
-              </div>
-            </div>
           </div>
         </div>
 
