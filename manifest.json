@@ -1,0 +1,24 @@
+{
+  "id": "/",
+  "name": "Burguerama | Smash Burgers Artesanales",
+  "short_name": "Burguerama",
+  "description": "Pioneros en smash burgers en Tacuarembó. Pan brioche artesanal, doble carne smash caramelizada y cheddar fundido. Pedidos directo a cocina.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait-primary",
+  "background_color": "#0c0c10",
+  "theme_color": "#f59e0b",
+  "lang": "es",
+  "categories": ["food", "shopping"],
+  "icons": [
+    {
+      "src": "/Burguerama_logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
