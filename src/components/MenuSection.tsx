@@ -79,7 +79,7 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header & Title */}
         <div className="text-center max-w-2xl mx-auto mb-8">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/25 mb-3">
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/25 mb-3">
             <Flame className="w-3.5 h-3.5" />
             Carta Oficial Burguerama
           </span>
@@ -205,9 +205,9 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
                       </p>
                     )}
 
-                    {/* Recipe Insumos / Ingredients Chips */}
+                    {/* Recipe Insumos / Ingredients Chips (Hidden on Mobile) */}
                     {plato.insumos_receta && plato.insumos_receta.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      <div className="hidden sm:flex flex-wrap gap-1.5 mt-2.5">
                         {plato.insumos_receta.slice(0, 4).map((ins) => (
                           <span
                             key={ins.insumo_id}

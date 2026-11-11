@@ -17,8 +17,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMenu, onFilte
       <div className="absolute top-60 -right-20 w-80 h-80 bg-amber-500/10 blur-3xl pointer-events-none rounded-full" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Top Badges Bar */}
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-6">
+        {/* Top Badges Bar (Hidden on Mobile) */}
+        <div className="hidden sm:flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-6">
           <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30 backdrop-blur-md shadow-lg shadow-amber-500/10">
             <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
             Pioneros en Smash Burgers
@@ -78,8 +78,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMenu, onFilte
               </button>
             </div>
 
-            {/* Features Row */}
-            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/10">
+            {/* Features Row (Hidden on Mobile) */}
+            <div className="hidden sm:grid grid-cols-3 gap-3 pt-4 border-t border-white/10">
               <div className="text-center lg:text-left">
                 <span className="block text-xl sm:text-2xl font-black text-amber-400 font-display">100%</span>
                 <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Carne Smash</span>

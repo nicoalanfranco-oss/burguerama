@@ -297,29 +297,126 @@ export async function sendOrderToFood(orderPayload: any): Promise<{
   };
 }
 
-export async function uploadComprobanteTransferencia(pedidoId: number, base64Image: string): Promise<string> {
-  const res = await fetch(`${FOOD_BACKEND_URL}/api/public/pedidos/${pedidoId}/comprobante`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comprobante_base64: base64Image }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.error || 'Error al subir comprobante');
-  }
-  const data = await res.json();
-  return data.comprobante_url;
+export interface PedidoDetalle {
+  pedido_id: number;
+  numero_orden: number;
+  tipo_pedido: string;
+  estado: string;
+  created_at: string;
+  enviado_cocina_at?: string | null;
+  listo_cocina_at?: string | null;
+  metodo_pago: string;
+  total: number;
+  costo_delivery?: number;
+  direccion?: string;
+  telefono?: string;
+  nombre?: string;
+  comprobante_url?: string | null;
+  items?: Array<{
+    nombre: string;
+    cantidad: number;
+    precio_unitario: number;
+    notas?: string;
+    modificadores?: Array<{ nombre: string; precio_extra?: number }>;
+  }>;
 }
 
-export async function fetchPedidoEstado(pedidoId: number): Promise<{
+export async function uploadComprobanteTransferencia(
+  pedidoId: number,
+  fileOrBase64: File | string
+): Promise<{ success: boolean; comprobante_url?: string; error?: string }> {
+  try {
+    let base64: string;
+    let filename = 'comprobante.jpg';
+    let mimeType = 'image/jpeg';
+
+    if (typeof fileOrBase64 === 'string') {
+      base64 = fileOrBase64;
+    } else {
+      filename = fileOrBase64.name;
+      mimeType = fileOrBase64.type || 'image/jpeg';
+      base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(fileOrBase64);
+      });
+    }
+
+    const res = await fetch(`${FOOD_BACKEND_URL}/api/public/pedidos/${pedidoId}/comprobante`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base64,
+        comprobante_base64: base64,
+        filename,
+        mimeType,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err.error || 'Error subiendo comprobante' };
+    }
+
+    const data = await res.json();
+    return { success: true, comprobante_url: data.comprobante_url };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Error de conexión' };
+  }
+}
+
+export async function fetchPedidoDetalle(
+  pedidoId: number,
+  email?: string,
+  telefono?: string
+): Promise<PedidoDetalle | null> {
+  try {
+    const params = new URLSearchParams({
+      pedido_id: String(pedidoId),
+      tenant_id: '9',
+    });
+    if (email) params.set('email', email);
+    if (telefono) params.set('telefono', telefono);
+
+    const res = await fetch(`${FOOD_BACKEND_URL}/api/public/pedido-detalle?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPedidoEstado(
+  arg: number | { email?: string; telefono?: string; tenantId?: number }
+): Promise<{
   estado: string;
   tiempo_estimado?: string;
   repartidor?: { nombre: string; telefono?: string };
+  pedido?: any;
+  pedidos?: any[];
 }> {
   try {
-    const res = await fetch(`${FOOD_BACKEND_URL}/api/public/pedidos/${pedidoId}/estado`);
-    if (res.ok) {
-      return await res.json();
+    if (typeof arg === 'number') {
+      const res = await fetch(`${FOOD_BACKEND_URL}/api/public/pedidos/${arg}/estado`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } else {
+      const params = new URLSearchParams({
+        tenant_id: String(arg.tenantId || 9),
+      });
+      if (arg.email) params.set('email', arg.email.trim());
+      if (arg.telefono) params.set('telefono', arg.telefono.trim());
+
+      const res = await fetch(`${FOOD_BACKEND_URL}/api/public/pedido-estado?${params.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
     }
   } catch {}
   return { estado: 'recibido' };

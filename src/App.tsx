@@ -6,7 +6,7 @@ import { CulturaBurgueramaSection } from './components/CulturaBurgueramaSection'
 import { DishDetailModal } from './components/DishDetailModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
-import { OrderStatusBanner } from './components/OrderStatusBanner';
+import { OrderStatusBanner, PedidoActivo } from './components/OrderStatusBanner';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { Footer } from './components/Footer';
 import { ToastNotification, ToastData } from './components/ToastNotification';
@@ -32,10 +32,17 @@ export const App: React.FC = () => {
 
   // Modals & Drawers
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [cartInitialTab, setCartInitialTab] = useState<'carrito' | 'pedidos'>('carrito');
+  const [activeOrders, setActiveOrders] = useState<PedidoActivo[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
   const [selectedDish, setSelectedDish] = useState<ProductoElaborado | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('TODAS');
+
+  const handleOpenCart = (tab: 'carrito' | 'pedidos' = 'carrito') => {
+    setCartInitialTab(tab);
+    setIsCartOpen(true);
+  };
 
   // Success Modal
   const [orderSuccessNumber, setOrderSuccessNumber] = useState<number | null>(null);
@@ -160,7 +167,10 @@ export const App: React.FC = () => {
   return (
     <div className="min-h-screen pb-20 md:pb-0 bg-[#0c0c10] text-gray-100 font-sans selection:bg-amber-500 selection:text-black">
       {/* Live Order Tracker Banner if any active order exists */}
-      <OrderStatusBanner />
+      <OrderStatusBanner
+        onOpenMisPedidos={() => handleOpenCart('pedidos')}
+        onPedidosChange={setActiveOrders}
+      />
 
       {/* Main Navbar */}
       <Navbar
@@ -168,7 +178,9 @@ export const App: React.FC = () => {
         marca={marca}
         cartCount={cartCount}
         cartTotal={cartTotal}
-        onOpenCart={() => setIsCartOpen(true)}
+        activeOrdersCount={activeOrders.length}
+        onOpenOrders={() => handleOpenCart('pedidos')}
+        onOpenCart={(tab) => handleOpenCart(tab || 'carrito')}
         onNavigateHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       />
 
@@ -201,9 +213,10 @@ export const App: React.FC = () => {
       {/* Mobile Bottom Navigation Bar */}
       <MobileBottomNav
         cartCount={cartCount}
+        activeOrdersCount={activeOrders.length}
         onNavigateHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         onNavigateMenu={() => handleScrollToMenu()}
-        onOpenCart={() => setIsCartOpen(true)}
+        onOpenCart={(tab) => handleOpenCart(tab || 'carrito')}
         whatsappUrl={tenant?.telefono ? `https://wa.me/598${tenant.telefono.replace(/\D/g, '')}?text=Hola%20Burguerama!%20Quiero%20hacer%20un%20pedido` : undefined}
       />
 
@@ -215,13 +228,21 @@ export const App: React.FC = () => {
         onAddToCart={(dish, qty, notes) => handleAddToCart(dish, 'elaborado', qty, notes)}
       />
 
-      {/* Slide-out Cart Drawer */}
+      {/* Slide-out Cart Drawer with Dual Tabs (Carrito & Mis Pedidos) and Upsell Scroller */}
       <CartDrawer
         isOpen={isCartOpen}
         items={cart}
+        platos={platos}
+        reventa={reventa}
+        marca={marca}
+        activeOrders={activeOrders}
+        initialTab={cartInitialTab}
         onClose={() => setIsCartOpen(false)}
         onUpdateQuantity={handleUpdateCartQuantity}
         onRemoveItem={handleRemoveCartItem}
+        onQuickAdd={(plato) => handleAddToCart(plato, 'elaborado', 1)}
+        onQuickAddReventa={(rev) => handleAddToCart(rev, 'reventa', 1)}
+        onOpenDishDetail={(dish) => setSelectedDish(dish)}
         onProceedToCheckout={() => {
           setIsCartOpen(false);
           setIsCheckoutOpen(true);
@@ -241,7 +262,7 @@ export const App: React.FC = () => {
       <ToastNotification
         toast={toast}
         onClose={() => setToast(null)}
-        onOpenCart={() => setIsCartOpen(true)}
+        onOpenCart={() => handleOpenCart('carrito')}
       />
 
       {/* Order Success Popup */}
@@ -285,6 +306,19 @@ export const App: React.FC = () => {
                   <span>Enviar Detalle por WhatsApp</span>
                 </a>
               )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setOrderSuccessNumber(null);
+                  handleOpenCart('pedidos');
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-400 font-bold text-xs uppercase tracking-wider hover:bg-amber-500/25 transition-all"
+              >
+                <span>Seguir mi pedido en tiempo real</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
 
               <button
                 type="button"

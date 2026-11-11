@@ -7,7 +7,7 @@ interface MobileBottomNavProps {
   activeOrdersCount?: number;
   onNavigateHome: () => void;
   onNavigateMenu: () => void;
-  onOpenCart: () => void;
+  onOpenCart: (initialTab?: 'carrito' | 'pedidos') => void;
   whatsappUrl?: string;
 }
 
@@ -63,12 +63,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">WhatsApp</span>
         </a>
 
-        {/* Mi Pedido (Cart Drawer) */}
+        {/* Mi Pedido (Cart Drawer con Carrito o Pedidos Activos) */}
         <button
           type="button"
           onClick={() => {
             triggerHaptic('medium');
-            onOpenCart();
+            if (cartCount === 0 && activeOrdersCount > 0) {
+              onOpenCart('pedidos');
+            } else {
+              onOpenCart('carrito');
+            }
           }}
           className="relative flex flex-col items-center justify-center gap-1 py-1 px-3 text-amber-400 hover:text-amber-300 transition-colors"
         >
@@ -79,7 +83,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 {cartCount}
               </span>
             ) : activeOrdersCount > 0 ? (
-              <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-black text-[10px] font-black flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-black text-[10px] font-black flex items-center justify-center animate-pulse">
                 {activeOrdersCount}
               </span>
             ) : null}

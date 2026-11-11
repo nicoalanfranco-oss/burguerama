@@ -8,7 +8,7 @@ interface NavbarProps {
   marca: MarcaInfo;
   cartCount: number;
   cartTotal: number;
-  onOpenCart: () => void;
+  onOpenCart: (initialTab?: 'carrito' | 'pedidos') => void;
   onNavigateHome: () => void;
   onOpenOrders?: () => void;
   activeOrdersCount?: number;
