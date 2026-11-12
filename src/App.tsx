@@ -189,6 +189,7 @@ export const App: React.FC = () => {
         <HeroSection
           onExploreMenu={() => handleScrollToMenu()}
           onFilterCategory={(cat) => handleScrollToMenu(cat)}
+          marca={marca}
         />
 
         {/* Product Catalog Section with strict Tenant 9 framing */}

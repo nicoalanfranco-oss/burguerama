@@ -2,13 +2,15 @@ import React from 'react';
 import { BurgerViewer3D } from './BurgerViewer3D';
 import { Flame, Clock, MapPin, Sparkles, ChevronRight, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
+import type { MarcaInfo } from '../types/food';
 
 interface HeroSectionProps {
   onExploreMenu: () => void;
   onFilterCategory?: (cat: string) => void;
+  marca?: MarcaInfo;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMenu, onFilterCategory }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMenu, onFilterCategory, marca }) => {
   return (
     <section className="relative overflow-hidden pt-6 pb-12 sm:pt-10 sm:pb-16 bg-gradient-to-b from-[#0a0a0d] via-[#121218] to-[#0d0d12]">
       {/* Ambient background glow flares */}
@@ -85,11 +87,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMenu, onFilte
                 <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Carne Smash</span>
               </div>
               <div className="text-center lg:text-left">
-                <span className="block text-xl sm:text-2xl font-black text-amber-400 font-display">35-50'</span>
+                <span className="block text-xl sm:text-2xl font-black text-amber-400 font-display">
+                  {marca?.tiempo_espera_delivery || '25–30\''}
+                </span>
                 <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Delivery Rápido</span>
               </div>
               <div className="text-center lg:text-left">
-                <span className="block text-xl sm:text-2xl font-black text-amber-400 font-display">$50</span>
+                <span className="block text-xl sm:text-2xl font-black text-amber-400 font-display">
+                  {Number(marca?.costo_delivery) === 0 ? 'Gratis' : `$${marca?.costo_delivery ?? 0}`}
+                </span>
                 <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Costo Envío</span>
               </div>
             </div>

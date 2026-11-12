@@ -86,7 +86,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [comprobantePreview, setComprobantePreview] = useState<string | null>(null);
 
   const subtotal = items.reduce((acc, it) => acc + it.precio_unitario * it.cantidad, 0);
-  const costoEnvio = tipoEntrega === 'delivery' ? (marca?.costo_delivery ?? 50) : 0;
+  const costoEnvio = tipoEntrega === 'delivery' ? (marca?.costo_delivery ?? 0) : 0;
   const total = subtotal + costoEnvio;
 
   if (!isOpen) return null;
@@ -314,7 +314,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 }`}
               >
                 <span>🛵 Envío a Domicilio</span>
-                <span className="text-[11px] font-mono opacity-80">(${marca?.costo_delivery ?? 50})</span>
+                <span className="text-[11px] font-mono opacity-80">({Number(marca?.costo_delivery) === 0 ? 'Envío Gratis' : `+$${marca?.costo_delivery ?? 0}`})</span>
               </button>
 
               <button
