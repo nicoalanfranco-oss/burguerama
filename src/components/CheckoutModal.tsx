@@ -68,6 +68,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   })();
 
+  // ── Historial de Direcciones (máx. 5) ─────────────────────────────────────
+  interface DireccionGuardada {
+    id: string;
+    alias?: string;
+    direccion: string;
+    apartamento?: string;
+    referencia?: string;
+    ultimo_uso: string;
+  }
+
+  const loadDirecciones = (): DireccionGuardada[] => {
+    try {
+      const raw = localStorage.getItem('burguerama_direcciones_guardadas');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  };
+
+  const saveDireccion = (dir: Omit<DireccionGuardada, 'id' | 'ultimo_uso'>) => {
+    try {
+      const existing = loadDirecciones();
+      const sinDupl = existing.filter(
+        d => d.direccion.toLowerCase().trim() !== dir.direccion.toLowerCase().trim()
+      );
+      const nueva: DireccionGuardada = {
+        id: Date.now().toString(36),
+        ...dir,
+        ultimo_uso: new Date().toISOString(),
+      };
+      localStorage.setItem('burguerama_direcciones_guardadas', JSON.stringify([nueva, ...sinDupl].slice(0, 5)));
+    } catch {}
+  };
+
   const [tipoEntrega, setTipoEntrega] = useState<'delivery' | 'takeaway'>('delivery');
   const [nombre, setNombre] = useState(savedCustomer?.nombre || '');
   const [telefono, setTelefono] = useState(() => normalizeUYPhone(savedCustomer?.telefono || ''));
@@ -80,6 +112,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [enviando, setEnviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedAccount, setCopiedAccount] = useState(false);
+  const [direccionesGuardadas, setDireccionesGuardadas] = useState<DireccionGuardada[]>(() => loadDirecciones());
 
   // Subida opcional de comprobante
   const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
@@ -147,6 +180,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             referencia: referencia.trim(),
           })
         );
+        // Guardar en historial de direcciones si es delivery
+        if (tipoEntrega === 'delivery' && direccion.trim()) {
+          saveDireccion({
+            direccion: direccion.trim(),
+            apartamento: apartamento.trim() || undefined,
+            referencia: referencia.trim() || undefined,
+          });
+          setDireccionesGuardadas(loadDirecciones());
+        }
       } catch {}
 
       const resolvedAddress = `${direccion.trim()}${apartamento.trim() ? ` (${apartamento.trim()})` : ''}${referencia.trim() ? ` - Ref: ${referencia.trim()}` : ''}`;
@@ -376,6 +418,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <MapPin className="w-3.5 h-3.5 text-amber-400" />
                   Dirección en Tacuarembó *
                 </label>
+
+                {/* Chips de direcciones guardadas */}
+                {direccionesGuardadas.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {direccionesGuardadas.map((d) => {
+                      const isSelected = direccion.trim().toLowerCase() === d.direccion.toLowerCase().trim();
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          title={`${d.direccion}${d.apartamento ? ` (${d.apartamento})` : ''}`}
+                          onClick={() => {
+                            setDireccion(d.direccion);
+                            setApartamento(d.apartamento || '');
+                            setReferencia(d.referencia || '');
+                          }}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
+                            isSelected
+                              ? 'border-amber-500 bg-amber-500/15 text-amber-300'
+                              : 'border-white/15 bg-white/5 text-gray-400 hover:border-white/30 hover:text-gray-200'
+                          }`}
+                        >
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <span className="max-w-[160px] truncate">{d.alias || d.direccion}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <input
                   type="text"
                   required
