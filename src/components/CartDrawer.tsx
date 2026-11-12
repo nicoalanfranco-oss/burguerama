@@ -259,7 +259,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mt-0.5">
                   <Clock className="w-3 h-3 text-amber-400" />
-                  <span>Entrega en Tacuarembó · {marca?.tiempo_espera_delivery || '35–50 min'}</span>
+                  <span>Entrega en Tacuarembó · {marca?.tiempo_espera_delivery || '25–30 min'}</span>
                 </div>
               </div>
             </div>
@@ -702,7 +702,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
               <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
                 <Clock className="w-3 h-3 text-amber-400" />
-                <span>Entrega en Tacuarembó · {marca?.tiempo_espera_delivery || '35–50 min'}</span>
+                <span>Entrega en Tacuarembó · {marca?.tiempo_espera_delivery || '25–30 min'}</span>
               </div>
             </div>
           </div>
