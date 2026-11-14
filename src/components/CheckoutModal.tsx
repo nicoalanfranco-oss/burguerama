@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CartItem, MarcaInfo } from '../types/food';
+import { CartItem, MarcaInfo, ProductoElaborado, ProductoReventa } from '../types/food';
 import { sendOrderToFood, uploadComprobanteTransferencia } from '../services/api';
 import { launchConfetti } from '../utils/confetti';
 import { triggerHaptic } from '../utils/haptics';
@@ -30,6 +30,9 @@ interface CheckoutModalProps {
   onClose: () => void;
   onOrderSuccess: (orderNumber: number, whatsappUrl: string, paymentMethod?: any, pedidoId?: number) => void;
   marca?: MarcaInfo;
+  platosDisponibles?: ProductoElaborado[];
+  reventaDisponible?: ProductoReventa[];
+  onRemoveInvalidItem?: (id: string) => void;
 }
 
 const BANCOS_TRANSFERENCIA = [
@@ -58,6 +61,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   onOrderSuccess,
   marca,
+  platosDisponibles,
+  reventaDisponible,
+  onRemoveInvalidItem,
 }) => {
   const savedCustomer = (() => {
     try {
@@ -162,6 +168,28 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (tipoEntrega === 'delivery' && !direccion.trim()) {
       setErrorMsg('Por favor ingresa tu dirección para el delivery en Tacuarembó.');
       return;
+    }
+
+    // ── 0. Verificación estricta de existencia de productos en la carta activa de cocina ──
+    if (platosDisponibles && platosDisponibles.length > 0) {
+      const itemInvalido = items.find(it => {
+        if (it.tipo === 'elaborado') {
+          return !platosDisponibles.some(p => p.producto_elaborado_id === it.producto_id && p.activo !== false);
+        }
+        if (it.tipo === 'reventa' && reventaDisponible) {
+          return !reventaDisponible.some(r => r.producto_reventa_id === it.producto_id && r.activo !== false && !r.sin_stock);
+        }
+        return false;
+      });
+
+      if (itemInvalido) {
+        setErrorMsg(`El artículo "${itemInvalido.nombre}" ya no está disponible en cocina. Fue retirado de tu pedido.`);
+        if (onRemoveInvalidItem) {
+          onRemoveInvalidItem(itemInvalido.id);
+        }
+        setEnviando(false);
+        return;
+      }
     }
 
     setEnviando(true);

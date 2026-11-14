@@ -13,6 +13,7 @@ import { ToastNotification, ToastData } from './components/ToastNotification';
 import { ProductoElaborado, ProductoReventa, CartItem, TenantInfo, MarcaInfo } from './types/food';
 import {
   fetchBurgueramaCatalogo,
+  getInitialCatalog,
   TENANT_INFO,
   MARCA_INFO,
   REAL_PLATOS,
@@ -22,13 +23,15 @@ import {
 import { useStructuredData } from './hooks/useStructuredData';
 import { CheckCircle2, MessageCircle, ArrowRight, Sparkles, ShoppingBag, X } from 'lucide-react';
 import { triggerHaptic } from './utils/haptics';
+import { checkAppVersionAndPurge, recordUserActivity, checkInactivityState, sanitizeCartItems } from './utils/versionCheck';
 
 export const App: React.FC = () => {
-  const [tenant, setTenant] = useState<TenantInfo>(TENANT_INFO);
-  const [marca, setMarca] = useState<MarcaInfo>(MARCA_INFO);
-  const [platos, setPlatos] = useState<ProductoElaborado[]>(REAL_PLATOS);
-  const [reventa, setReventa] = useState<ProductoReventa[]>(REAL_REVENTA);
-  const [loading, setLoading] = useState<boolean>(true);
+  const initialCatalog = getInitialCatalog();
+  const [tenant, setTenant] = useState<TenantInfo>(initialCatalog.tenant || TENANT_INFO);
+  const [marca, setMarca] = useState<MarcaInfo>(initialCatalog.marca || MARCA_INFO);
+  const [platos, setPlatos] = useState<ProductoElaborado[]>(initialCatalog.elaborados || REAL_PLATOS);
+  const [reventa, setReventa] = useState<ProductoReventa[]>(initialCatalog.reventa || REAL_REVENTA);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Modals & Drawers
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
@@ -65,16 +68,111 @@ export const App: React.FC = () => {
     } catch {}
   }, [cart]);
 
-  // Fetch Live Catalog on Mount
+  // Saneamiento proactivo del carrito: eliminar productos que hayan sido borrados o dados de baja en el menú
   useEffect(() => {
-    fetchBurgueramaCatalogo()
-      .then((data) => {
+    if (platos.length === 0 && reventa.length === 0) return;
+    if (cart.length === 0) return;
+
+    const { validCart, removedCount, removedNames } = sanitizeCartItems(cart, platos, reventa);
+    if (removedCount > 0) {
+      console.warn(`[CartSanitizer] Se eliminaron ${removedCount} ítems obsoletos del carrito:`, removedNames);
+      setCart(validCart);
+      setToast({
+        id: `cart_sanitize_${Date.now()}`,
+        title: 'Carta actualizada',
+        subtitle: `Se actualizaron productos de tu pedido que ya no están disponibles (${removedNames.join(', ')}).`,
+      });
+    }
+  }, [platos, reventa]);
+
+  // Sincronización en vivo del catálogo (en arranque, al volver al primer plano, al ganar foco, y periódicamente)
+  useEffect(() => {
+    let isSubscribed = true;
+
+    // Registrar actividad del usuario para control de sesiones inactivas
+    const handleUserTouch = () => recordUserActivity();
+    window.addEventListener('click', handleUserTouch);
+    window.addEventListener('touchstart', handleUserTouch);
+
+    const syncCatalog = async (silent = false) => {
+      try {
+        if (!silent) setLoading(true);
+        const data = await fetchBurgueramaCatalogo(true);
+        if (!isSubscribed) return;
         if (data.tenant) setTenant(data.tenant);
         if (data.marca) setMarca(data.marca);
         if (data.elaborados && data.elaborados.length > 0) setPlatos(data.elaborados);
         if (data.reventa && data.reventa.length > 0) setReventa(data.reventa);
-      })
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.warn('Error sincronizando catálogo en vivo:', err);
+      } finally {
+        if (isSubscribed && !silent) setLoading(false);
+      }
+    };
+
+    // 1. Carga inicial fresca en segundo plano y verificación de versión
+    syncCatalog(false);
+    checkAppVersionAndPurge().catch(() => {});
+
+    // 2. Al volver a la app (desbloquear pantalla, volver desde WhatsApp, cambiar de app)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const { isStale, shouldHardReload, minutesIdle } = checkInactivityState();
+        recordUserActivity();
+
+        if (shouldHardReload) {
+          console.warn(`[Inactivity] Sesión abierta hace ${minutesIdle} minutos. Refrescando versión y datos limpios...`);
+          checkAppVersionAndPurge().then(purged => {
+            if (!purged) {
+              syncCatalog(true);
+            }
+          });
+          return;
+        }
+
+        if (isStale) {
+          console.log(`[Inactivity] App reanudada tras ${minutesIdle} min de inactividad.`);
+          checkAppVersionAndPurge().catch(() => {});
+        }
+
+        syncCatalog(true);
+      }
+    };
+
+    // 3. Al ganar foco la ventana
+    const handleFocus = () => {
+      recordUserActivity();
+      checkAppVersionAndPurge().catch(() => {});
+      syncCatalog(true);
+    };
+
+    // 4. Al recuperar conexión a internet
+    const handleOnline = () => {
+      checkAppVersionAndPurge().catch(() => {});
+      syncCatalog(true);
+    };
+
+    // 5. Polling periódico cada 60 segundos mientras la app esté abierta
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        checkAppVersionAndPurge().catch(() => {});
+        syncCatalog(true);
+      }
+    }, 60 * 1000);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      isSubscribed = false;
+      window.removeEventListener('click', handleUserTouch);
+      window.removeEventListener('touchstart', handleUserTouch);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+      clearInterval(interval);
+    };
   }, []);
 
   // Inject SEO Structured Data
@@ -255,8 +353,11 @@ export const App: React.FC = () => {
         isOpen={isCheckoutOpen}
         items={cart}
         marca={marca}
+        platosDisponibles={platos}
+        reventaDisponible={reventa}
         onClose={() => setIsCheckoutOpen(false)}
         onOrderSuccess={handleOrderSuccess}
+        onRemoveInvalidItem={handleRemoveCartItem}
       />
 
       {/* Toast Notification */}
