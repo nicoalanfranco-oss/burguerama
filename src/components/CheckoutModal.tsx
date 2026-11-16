@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CartItem, MarcaInfo, ProductoElaborado, ProductoReventa } from '../types/food';
-import { sendOrderToFood, uploadComprobanteTransferencia } from '../services/api';
+import { sendOrderToFood, uploadComprobanteTransferencia, searchAddress } from '../services/api';
 import { launchConfetti } from '../utils/confetti';
 import { triggerHaptic } from '../utils/haptics';
 import {
@@ -119,6 +119,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedAccount, setCopiedAccount] = useState(false);
   const [direccionesGuardadas, setDireccionesGuardadas] = useState<DireccionGuardada[]>(() => loadDirecciones());
+  const [coordsResueltas, setCoordsResueltas] = useState<{ lat: number; lng: number; mapsUrl: string } | null>(null);
 
   // Subida opcional de comprobante
   const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
@@ -219,6 +220,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
       } catch {}
 
+      // ── Geocodificación de la dirección ──────────────────────────────────────
+      let resolvedLat: number | null = null;
+      let resolvedLng: number | null = null;
+      let resolvedMapsUrl: string | null = null;
+
+      if (tipoEntrega === 'delivery' && direccion.trim()) {
+        // Si ya tenemos coords resueltas de una sugerencia seleccionada, usarlas
+        if (coordsResueltas) {
+          resolvedLat = coordsResueltas.lat;
+          resolvedLng = coordsResueltas.lng;
+          resolvedMapsUrl = coordsResueltas.mapsUrl;
+        } else {
+          // Geocodificar el texto libre ingresado
+          try {
+            const dirLimpia = direccion.trim().replace(/\(.*?\)/g, '').trim();
+            const dirNorm = dirLimpia.replace(/\b([Aa]v|[Bb]var|[Gg]ral|[Cc]nel)\.([^\s])/g, '$1. $2');
+            const sugerencias = await searchAddress(dirNorm, 9, 'Tacuarembó');
+            if (sugerencias.length > 0) {
+              const primera = sugerencias[0];
+              // Validación anti-disparate: al menos un token del input debe aparecer en el resultado
+              const tokensInput = dirNorm.toLowerCase().split(/[\s,]+/).filter((w: string) => w.length > 2);
+              const resultadoNorm = (primera.display_name + ' ' + primera.direccion).toLowerCase();
+              const coincide = tokensInput.some((tok: string) => resultadoNorm.includes(tok));
+              if (coincide && primera.latitud && primera.longitud) {
+                resolvedLat = primera.latitud;
+                resolvedLng = primera.longitud;
+                resolvedMapsUrl = primera.google_maps_url;
+              }
+            }
+          } catch {}
+        }
+      }
+
+      // Regla de oro: si no hay coords verificadas, usar texto exacto del cliente
+      const mapsLinkFinal = resolvedMapsUrl ||
+        (tipoEntrega === 'delivery'
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${direccion.trim()}, Tacuarembó, Uruguay`)}`
+          : null);
+
       const resolvedAddress = `${direccion.trim()}${apartamento.trim() ? ` (${apartamento.trim()})` : ''}${referencia.trim() ? ` - Ref: ${referencia.trim()}` : ''}`;
 
       const payload = {
@@ -234,6 +274,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           nombre: nombreLimpio,
           telefono: telLimpio,
           direccion: resolvedAddress,
+          latitud: resolvedLat ?? undefined,
+          longitud: resolvedLng ?? undefined,
+          google_maps_url: resolvedMapsUrl ?? undefined,
           costo_envio: costoEnvio,
           metodo_pago: metodoPago,
           paga_con: pagaCon.trim(),
@@ -283,7 +326,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           `👤 *Cliente:* ${nombreLimpio}\n` +
           `📱 *Teléfono:* ${telLimpio}\n` +
           `🛵 *Modalidad:* ${tipoEntrega === 'delivery' ? 'Delivery a Domicilio' : 'Retiro en Local (Sarandí 312 Bis)'}\n` +
-          (tipoEntrega === 'delivery' ? `📍 *Dirección:* ${resolvedAddress}\n` : '') +
+          (tipoEntrega === 'delivery' ? `📍 *Dirección:* ${resolvedAddress}${mapsLinkFinal ? `\n🗺️ *Maps:* ${mapsLinkFinal}` : ''}\n` : '') +
           `💳 *Pago:* ${metodoPago.toUpperCase()}${metodoPago === 'efectivo' && pagaCon ? ` (Paga con $${pagaCon})` : ''}\n\n` +
           `*DETALLE DEL PEDIDO:*\n${lineas}\n\n` +
           (costoEnvio > 0 ? `🛵 *Envío:* $${costoEnvio}\n` : '') +

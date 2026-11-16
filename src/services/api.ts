@@ -424,6 +424,206 @@ export async function fetchPedidoDetalle(
   }
 }
 
+// ── Geocodificación de Direcciones ────────────────────────────────────────────
+
+export interface AddressSuggestion {
+  display_name: string;
+  direccion: string;
+  ciudad: string;
+  departamento: string;
+  pais: string;
+  latitud: number;
+  longitud: number;
+  google_maps_url: string;
+}
+
+// Clave de Google Maps Platform (Places New & Geocoding oficial)
+const GOOGLE_MAPS_KEY = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyAQ8ASq1tqPVm8_q_4lootr0Q8-2EV05Ck';
+
+export async function searchAddress(query: string, tenantId = 9, ciudadBias = 'Tacuarembó'): Promise<AddressSuggestion[]> {
+  if (!query || query.trim().length < 3) return [];
+  const cleanQ = query.trim();
+
+  // Limpieza inteligente de prefijos pegados (Av.Torres -> Av. Torres)
+  const normalizada = cleanQ.replace(/\b([Aa]v|[Bb]var|[Gg]ral|[Cc]nel)\.([^\s])/g, '$1. $2').replace(/\s{2,}/g, ' ');
+  const sinParentesis = normalizada.replace(/\(.*?\)/g, '').trim();
+
+  const trailingMatch = sinParentesis.match(/^(.*?)\s+(\d{1,5}(?:\s*(?:bis|a|b|c))?)$/i);
+  const streetOnly = trailingMatch ? trailingMatch[1].trim() : '';
+  const userDoorNumber = trailingMatch ? trailingMatch[2].trim() : '';
+
+  // 1. Intentar endpoint backend de Food (conectado a Google Maps Platform)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+    const params = new URLSearchParams({
+      q: sinParentesis || cleanQ,
+      tenant_id: String(tenantId),
+      ciudad: ciudadBias,
+    });
+
+    const res = await fetch(`${FOOD_BACKEND_URL}/api/public/geocode?${params.toString()}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map((item: AddressSuggestion) => {
+          let dirFinal = item.direccion;
+          if (userDoorNumber && !new RegExp(`\\b${userDoorNumber}$`, 'i').test(dirFinal)) {
+            dirFinal = `${dirFinal} ${userDoorNumber}`;
+          }
+          const mapsUrl = (item.latitud && item.longitud)
+            ? `https://www.google.com/maps/search/?api=1&query=${item.latitud},${item.longitud}`
+            : (item.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${dirFinal}, ${item.ciudad || ciudadBias}, Uruguay`)}`);
+
+          return {
+            ...item,
+            direccion: dirFinal,
+            display_name: item.display_name || `${dirFinal}, ${item.ciudad || ciudadBias}, ${item.pais || 'Uruguay'}`,
+            google_maps_url: mapsUrl,
+          };
+        });
+      }
+    }
+  } catch {
+    // Continuar a fallback directo de Google Geocoding
+  }
+
+  // 2. Fallback directo a Google Geocoding API (cliente web con CORS oficial)
+  if (GOOGLE_MAPS_KEY) {
+    try {
+      const gController = new AbortController();
+      const gTimeout = setTimeout(() => gController.abort(), 2500);
+
+      const queryParaGoogle = `${sinParentesis || cleanQ}, ${ciudadBias}, Uruguay`;
+      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(queryParaGoogle)}&key=${GOOGLE_MAPS_KEY}&region=uy&language=es`;
+      const gRes = await fetch(gUrl, { signal: gController.signal });
+      clearTimeout(gTimeout);
+
+      if (gRes.ok) {
+        const gData = await gRes.json();
+        if (gData.status === 'OK' && Array.isArray(gData.results) && gData.results.length > 0) {
+          const list: AddressSuggestion[] = [];
+          for (const r of gData.results) {
+            const lat = r.geometry?.location?.lat;
+            const lng = r.geometry?.location?.lng;
+            if (lat == null || lng == null) continue;
+
+            const components = r.address_components || [];
+            const getComp = (type: string) => components.find((c: any) => c.types.includes(type))?.long_name || '';
+
+            const streetNumber = getComp('street_number') || userDoorNumber;
+            const route = getComp('route');
+            const direccion = [route, streetNumber].filter(Boolean).join(' ') || r.formatted_address.split(',')[0];
+            const ciudad = getComp('locality') || getComp('sublocality') || ciudadBias;
+            const departamento = getComp('administrative_area_level_1') || ciudadBias;
+            const pais = getComp('country') || 'Uruguay';
+
+            list.push({
+              display_name: r.formatted_address,
+              direccion,
+              ciudad,
+              departamento,
+              pais,
+              latitud: lat,
+              longitud: lng,
+              google_maps_url: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+            });
+          }
+          if (list.length > 0) return list.slice(0, 5);
+        }
+      }
+    } catch (gErr) {
+      console.warn('Error en fallback directo Google Geocoding:', gErr);
+    }
+  }
+
+  // 3. Fallback resiliente con Photon (OpenStreetMap)
+  try {
+    const queriesToTry = [cleanQ];
+    if (streetOnly && streetOnly !== cleanQ && streetOnly.length >= 2) {
+      queriesToTry.push(streetOnly);
+    }
+
+    const allFeatures: any[] = [];
+    for (const q of queriesToTry) {
+      try {
+        const pController = new AbortController();
+        const pTimeout = setTimeout(() => pController.abort(), 2000);
+
+        const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=-31.71&lon=-55.98&limit=6`;
+        const pRes = await fetch(photonUrl, { signal: pController.signal });
+        clearTimeout(pTimeout);
+
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData.features && pData.features.length > 0) {
+            allFeatures.push(...pData.features);
+          }
+        }
+      } catch {}
+    }
+
+    if (allFeatures.length > 0) {
+      const list: AddressSuggestion[] = [];
+      const seen = new Set<string>();
+
+      for (const f of allFeatures) {
+        const p = f.properties || {};
+        const coords = f.geometry?.coordinates || [];
+        const lon = coords[0];
+        const lat = coords[1];
+        if (!lat || !lon) continue;
+
+        const isUy = !p.countrycode || p.countrycode.toUpperCase() === 'UY';
+        const isCity = [p.city, p.town, p.state, p.county, p.district]
+          .filter(Boolean)
+          .some((s: string) => s.toLowerCase().includes(ciudadBias.toLowerCase()));
+
+        if (!isUy && !isCity) continue;
+
+        const streetName = p.street || p.name || streetOnly || cleanQ;
+        const finalDoorNumber = p.housenumber || userDoorNumber;
+        let direccion = streetName;
+        if (finalDoorNumber) {
+          const endsWithNum = new RegExp(`\\b${finalDoorNumber}$`, 'i').test(streetName);
+          if (!endsWithNum) direccion = `${streetName} ${finalDoorNumber}`;
+        }
+
+        const itemCity = p.city || p.town || ciudadBias;
+        const itemState = p.state || ciudadBias;
+        const itemCountry = p.country || 'Uruguay';
+
+        const key = `${direccion}|${itemCity}`.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        list.push({
+          display_name: [direccion, itemCity, itemState, itemCountry].filter(Boolean).join(', '),
+          direccion,
+          ciudad: itemCity,
+          departamento: itemState,
+          pais: itemCountry,
+          latitud: lat,
+          longitud: lon,
+          google_maps_url: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+        });
+      }
+
+      if (list.length > 0) return list.slice(0, 5);
+    }
+  } catch (err) {
+    console.warn('Error en fallback de búsqueda de dirección OSM:', err);
+  }
+
+  return [];
+}
+
 export async function fetchPedidoEstado(
   arg: number | { email?: string; telefono?: string; tenantId?: number }
 ): Promise<{
