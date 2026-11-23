@@ -368,15 +368,16 @@ export async function uploadComprobanteTransferencia(
     if (typeof fileOrBase64 === 'string') {
       base64 = fileOrBase64;
     } else {
-      filename = fileOrBase64.name;
-      mimeType = fileOrBase64.type || 'image/jpeg';
-      base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(fileOrBase64);
-      });
+      // Comprimir imagen antes de enviar (máx 1600px, 82% calidad)
+      const { procesarComprobante } = await import('../utils/imageCompressor');
+      const processed = await procesarComprobante(fileOrBase64);
+      filename = processed.filename;
+      mimeType = processed.mimeType;
+      base64 = processed.base64;
     }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
     const res = await fetch(`${FOOD_BACKEND_URL}/api/public/pedidos/${pedidoId}/comprobante`, {
       method: 'POST',
@@ -387,7 +388,8 @@ export async function uploadComprobanteTransferencia(
         filename,
         mimeType,
       }),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -397,6 +399,9 @@ export async function uploadComprobanteTransferencia(
     const data = await res.json();
     return { success: true, comprobante_url: data.comprobante_url };
   } catch (err: any) {
+    if (err.name === 'AbortError') {
+      return { success: false, error: 'La subida tardó demasiado. Intentá con una foto más chica.' };
+    }
     return { success: false, error: err.message || 'Error de conexión' };
   }
 }

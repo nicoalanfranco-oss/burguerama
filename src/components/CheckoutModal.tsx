@@ -139,15 +139,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setTimeout(() => setCopiedAccount(false), 2000);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setComprobanteFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setComprobantePreview(ev.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    // Comprimir antes de hacer preview
+    const { procesarComprobante } = await import('../utils/imageCompressor');
+    const processed = await procesarComprobante(file);
+    setComprobantePreview(processed.base64);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -676,7 +675,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </label>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,image/heic,image/heif,.pdf"
                   onChange={handleFileChange}
                   className="w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black hover:file:brightness-110 cursor-pointer"
                 />
