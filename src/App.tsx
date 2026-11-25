@@ -122,7 +122,7 @@ export const App: React.FC = () => {
 
         if (shouldHardReload) {
           console.warn(`[Inactivity] Sesión abierta hace ${minutesIdle} minutos. Refrescando versión y datos limpios...`);
-          checkAppVersionAndPurge().then(purged => {
+          checkAppVersionAndPurge(true).then(purged => {
             if (!purged) {
               syncCatalog(true);
             }
@@ -132,6 +132,8 @@ export const App: React.FC = () => {
 
         if (isStale) {
           console.log(`[Inactivity] App reanudada tras ${minutesIdle} min de inactividad.`);
+          checkAppVersionAndPurge(true).catch(() => {});
+        } else {
           checkAppVersionAndPurge().catch(() => {});
         }
 
@@ -148,7 +150,7 @@ export const App: React.FC = () => {
 
     // 4. Al recuperar conexión a internet
     const handleOnline = () => {
-      checkAppVersionAndPurge().catch(() => {});
+      checkAppVersionAndPurge(true).catch(() => {});
       syncCatalog(true);
     };
 
