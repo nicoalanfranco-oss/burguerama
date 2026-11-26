@@ -359,7 +359,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         onOrderSuccess(result.numero_orden, waUrl, metodoPago, result.pedido_id);
       } else {
-        setErrorMsg(result.error || 'No se pudo registrar el pedido. Intenta nuevamente o contacta por WhatsApp.');
+        setErrorMsg(result.error || 'No se pudo confirmar la recepción del pedido en cocina. Por favor reintentá el envío.');
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error de conexión con la cocina central.');
